@@ -1,6 +1,8 @@
 package com.shiwei.seckill.seckill.service.impl;
 
 import com.shiwei.seckill.common.exception.BizException;
+import com.alibaba.csp.sentinel.Entry;
+import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.seckill.config.SeckillConstants;
 import com.shiwei.seckill.seckill.model.dto.SeckillGoodsSnapshot;
 import com.shiwei.seckill.seckill.model.dto.SeckillMqMessage;
@@ -28,9 +30,13 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
     private SeckillMqService seckillMqService;
     @Resource
     private SeckillStockService seckillStockService;
+    @Resource
+    private SentinelSupport sentinelSupport;
 
     @Override
     public SeckillSubmitRes submitSeckill(Long userId, SeckillSubmitReq req) {
+        Entry entry = sentinelSupport.enter("seckill.submit");
+        try {
         SeckillGoodsSnapshot snapshot = seckillActivityService.getGoodsSnapshot(req.getActivityId(), req.getGoodsId());
         if (snapshot == null) {
             throw new BizException("秒杀商品不存在");
@@ -67,6 +73,9 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
         res.setResultStatus(0);
         res.setMessageId(messageId);
         return res;
+        } finally {
+            entry.exit();
+        }
     }
 
     @Override

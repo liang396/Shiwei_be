@@ -1,9 +1,11 @@
 package com.shiwei.seckill.order.job;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.shiwei.seckill.order.entity.MessageDeadLetterEntity;
 import com.shiwei.seckill.order.config.OrderKafkaTopic;
 import com.shiwei.seckill.order.entity.OrderOutboxEntity;
 import com.shiwei.seckill.order.enums.OutboxSendStatusEnum;
+import com.shiwei.seckill.order.mapper.MessageDeadLetterMapper;
 import com.shiwei.seckill.order.mapper.OrderOutboxMapper;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,9 +18,12 @@ import java.util.List;
 @Component
 public class OrderOutboxProducerJob {
     private static final int BATCH_SIZE = 100;
+    private static final int MAX_RETRY_COUNT = 3;
 
     @Resource
     private OrderOutboxMapper orderOutboxMapper;
+    @Resource
+    private MessageDeadLetterMapper messageDeadLetterMapper;
     @Resource
     private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -43,10 +48,25 @@ public class OrderOutboxProducerJob {
                 event.setSendStatus(OutboxSendStatusEnum.SENT.getCode());
             } catch (RuntimeException ex) {
                 event.setRetryCount(event.getRetryCount() == null ? 1 : event.getRetryCount() + 1);
-                event.setSendStatus(OutboxSendStatusEnum.PENDING.getCode());
+                if (event.getRetryCount() >= MAX_RETRY_COUNT) {
+                    event.setSendStatus(OutboxSendStatusEnum.DEAD.getCode());
+                    messageDeadLetterMapper.insert(buildDeadLetter(event, ex.getMessage(), now));
+                } else {
+                    event.setSendStatus(OutboxSendStatusEnum.PENDING.getCode());
+                }
             }
             event.setUpdatedAt(now);
             orderOutboxMapper.updateById(event);
         }
+    }
+
+    private MessageDeadLetterEntity buildDeadLetter(OrderOutboxEntity event, String failReason, LocalDateTime now) {
+        MessageDeadLetterEntity deadLetter = new MessageDeadLetterEntity();
+        deadLetter.setBizKey(event.getBizKey());
+        deadLetter.setEventType(event.getEventType());
+        deadLetter.setPayload(event.getPayload());
+        deadLetter.setFailReason(failReason);
+        deadLetter.setCreatedAt(now);
+        return deadLetter;
     }
 }

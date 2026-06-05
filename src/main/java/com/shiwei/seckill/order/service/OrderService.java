@@ -12,7 +12,7 @@ public interface OrderService {
 
     List<OrderRecord> list();
 
-    OrderPageResult page(Long lastId, Integer size);
+    OrderPageResult page(Long lastId, Integer size, String lastCreatedTime);
 
     OrderRecord detail(Long orderId);
 

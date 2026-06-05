@@ -2,6 +2,7 @@ package com.shiwei.seckill.order.config;
 
 public final class OrderRedisKey {
     public static final String ORDER_TIMEOUT_ZSET = "order:timeout:zset";
+    public static final String ORDER_TIMEOUT_DELAY_QUEUE = "order:timeout:delay:queue";
 
     private OrderRedisKey() {
     }

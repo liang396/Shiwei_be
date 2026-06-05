@@ -43,6 +43,9 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         OrderStatusEnum sourceStatus = OrderStatusEnum.fromCode(order.getOrderStatus());
         OrderStatusEnum targetStatus = orderStateMachineConfig.getTargetStatus(sourceStatus, event);
         if (targetStatus == null) {
+            if (isIdempotentDuplicateEvent(sourceStatus, event)) {
+                return sourceStatus;
+            }
             throw new BizException("订单状态不允许执行该操作");
         }
 
@@ -51,11 +54,10 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         LocalDateTime payTime = event == OrderEventEnum.PAY_SUCCESS ? operateTime : null;
         LocalDateTime canceledTime = (event == OrderEventEnum.PAY_TIMEOUT || event == OrderEventEnum.USER_CANCEL) ? operateTime : null;
 
-        int updated = orderMapper.updateStatusWithVersion(
+        int updated = orderMapper.updateStatus(
             order.getId(),
             sourceStatus.getCode(),
             targetStatus.getCode(),
-            order.getVersion(),
             payChannel,
             payTime,
             canceledTime
@@ -67,7 +69,6 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         orderStatusLogMapper.insert(buildLog(order, sourceStatus, targetStatus, event, context, operateTime));
         orderOutboxMapper.insert(buildOutbox(order, sourceStatus, targetStatus, event, operateTime));
         order.setOrderStatus(targetStatus.getCode());
-        order.setVersion(order.getVersion() + 1);
         return targetStatus;
     }
 
@@ -79,8 +80,10 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         log.setSourceStatus(sourceStatus.getCode());
         log.setTargetStatus(targetStatus.getCode());
         log.setEventCode(event.name());
+        log.setTriggerType(context != null && context.getTriggerType() != null ? context.getTriggerType() : "SYSTEM_INTERNAL");
         log.setOperatorType(context != null && context.getOperatorType() != null ? context.getOperatorType().name() : OperatorTypeEnum.SYSTEM.name());
         log.setOperatorId(context == null ? null : context.getOperatorId());
+        log.setRequestId(context == null ? null : context.getRequestId());
         log.setRemark(context == null ? null : context.getRemark());
         log.setCreatedAt(operateTime);
         return log;
@@ -119,5 +122,27 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
 
     public void setOrderStateMachineConfig(OrderStateMachineConfig orderStateMachineConfig) {
         this.orderStateMachineConfig = orderStateMachineConfig;
+    }
+
+    private boolean isIdempotentDuplicateEvent(OrderStatusEnum currentStatus, OrderEventEnum event) {
+        if (event == OrderEventEnum.PAY_SUCCESS && currentStatus == OrderStatusEnum.PAID) {
+            return true;
+        }
+        if (event == OrderEventEnum.USER_CANCEL && currentStatus == OrderStatusEnum.CANCELED) {
+            return true;
+        }
+        if (event == OrderEventEnum.PAY_TIMEOUT && currentStatus == OrderStatusEnum.CANCELED) {
+            return true;
+        }
+        if (event == OrderEventEnum.DELIVER_GOODS && currentStatus == OrderStatusEnum.DELIVERED) {
+            return true;
+        }
+        if (event == OrderEventEnum.USER_SIGN && currentStatus == OrderStatusEnum.SIGNED) {
+            return true;
+        }
+        if (event == OrderEventEnum.APPLY_AFTER_SALE && currentStatus == OrderStatusEnum.AFTER_SALE) {
+            return true;
+        }
+        return event == OrderEventEnum.REFUND_FINISH && currentStatus == OrderStatusEnum.REFUNDED;
     }
 }

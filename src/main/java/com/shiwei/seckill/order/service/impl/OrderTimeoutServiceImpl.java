@@ -10,6 +10,10 @@ import com.shiwei.seckill.order.mapper.OrderMapper;
 import com.shiwei.seckill.order.service.OrderStateMachineService;
 import com.shiwei.seckill.order.service.OrderTimeoutService;
 import com.shiwei.seckill.order.service.support.OrderOperateContext;
+import org.redisson.api.RBlockingDeque;
+import org.redisson.api.RDelayedQueue;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class OrderTimeoutServiceImpl implements OrderTimeoutService {
@@ -29,10 +34,24 @@ public class OrderTimeoutServiceImpl implements OrderTimeoutService {
     private OrderMapper orderMapper;
     @Resource
     private OrderStateMachineService orderStateMachineService;
+    @Autowired(required = false)
+    private RedissonClient redissonClient;
 
     @Override
     public void registerOrderTimeout(String orderNo, long expireAtMillis) {
-        if (stringRedisTemplate == null || orderNo == null) {
+        if (orderNo == null) {
+            return;
+        }
+
+        long delayMillis = Math.max(expireAtMillis - System.currentTimeMillis(), 1L);
+        if (redissonClient != null) {
+            RBlockingDeque<String> blockingDeque = redissonClient.getBlockingDeque(OrderRedisKey.ORDER_TIMEOUT_DELAY_QUEUE);
+            RDelayedQueue<String> delayedQueue = redissonClient.getDelayedQueue(blockingDeque);
+            delayedQueue.offer(orderNo, delayMillis, TimeUnit.MILLISECONDS);
+            return;
+        }
+
+        if (stringRedisTemplate == null) {
             return;
         }
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -81,9 +100,14 @@ public class OrderTimeoutServiceImpl implements OrderTimeoutService {
             OrderOperateContext.builder()
                 .operatorType(OperatorTypeEnum.SYSTEM)
                 .operatorId(0L)
+                .triggerType("TIMEOUT_DELAY_QUEUE")
                 .remark("订单支付超时自动取消")
                 .operateTime(LocalDateTime.now())
                 .build()
         );
+    }
+
+    public void setRedissonClient(RedissonClient redissonClient) {
+        this.redissonClient = redissonClient;
     }
 }

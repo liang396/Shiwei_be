@@ -1,6 +1,7 @@
 package com.shiwei.seckill.pay.service;
 
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.enums.OrderStatusEnum;
 import com.shiwei.seckill.order.service.OrderService;
@@ -8,6 +9,7 @@ import com.shiwei.seckill.order.service.OrderStateMachineService;
 import com.shiwei.seckill.pay.entity.PayLogEntity;
 import com.shiwei.seckill.pay.mapper.PayLogMapper;
 import com.shiwei.seckill.pay.service.impl.AlipayPayServiceImpl;
+import com.alibaba.csp.sentinel.Entry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +35,10 @@ class AlipayPayServiceImplTest {
     private OrderStateMachineService orderStateMachineService;
     @Mock
     private PayLogMapper payLogMapper;
+    @Mock
+    private SentinelSupport sentinelSupport;
+    @Mock
+    private Entry sentinelEntry;
 
     @InjectMocks
     private AlipayPayServiceImpl payService;
@@ -40,6 +46,7 @@ class AlipayPayServiceImplTest {
     @Test
     void shouldSavePayLogAndTriggerPaySuccess() {
         OrderEntity order = buildOrder();
+        when(sentinelSupport.enter("pay.notify")).thenReturn(sentinelEntry);
         when(orderService.getEntityByOrderNo("SW123")).thenReturn(order);
         when(payLogMapper.insert(any(PayLogEntity.class))).thenReturn(1);
 
@@ -61,6 +68,7 @@ class AlipayPayServiceImplTest {
     @Test
     void shouldRejectDuplicatePayCallback() {
         OrderEntity order = buildOrder();
+        when(sentinelSupport.enter("pay.notify")).thenReturn(sentinelEntry);
         when(orderService.getEntityByOrderNo("SW123")).thenReturn(order);
         when(payLogMapper.insert(any(PayLogEntity.class))).thenThrow(new RuntimeException("Duplicate entry"));
 

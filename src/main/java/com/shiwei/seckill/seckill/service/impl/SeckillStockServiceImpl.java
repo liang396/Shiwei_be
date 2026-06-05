@@ -18,6 +18,10 @@ public class SeckillStockServiceImpl implements SeckillStockService {
 
     @Override
     public void rollbackStock(Long activityId, Long goodsId, Long userId, Integer buyNum) {
+        if (stringRedisTemplate != null) {
+            stringRedisTemplate.delete(SeckillRedisKey.userOrder(activityId, userId));
+            stringRedisTemplate.opsForValue().increment(SeckillRedisKey.stock(activityId, goodsId), buyNum == null ? 0L : buyNum.longValue());
+        }
         putResult(activityId, userId, "-1");
     }
 

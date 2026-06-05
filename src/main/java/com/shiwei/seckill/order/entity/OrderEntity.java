@@ -16,7 +16,6 @@ public class OrderEntity {
     private String orderNo;
     private Long userId;
     private Integer orderStatus;
-    private Integer version;
     private BigDecimal goodsAmount;
     private BigDecimal discountAmount;
     private BigDecimal payAmount;

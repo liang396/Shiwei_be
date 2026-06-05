@@ -4,7 +4,9 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.request.AlipayTradePagePayRequest;
+import com.alibaba.csp.sentinel.Entry;
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.enums.OperatorTypeEnum;
 import com.shiwei.seckill.order.enums.OrderEventEnum;
@@ -36,6 +38,8 @@ public class AlipayPayServiceImpl implements PayService {
     private OrderStateMachineService orderStateMachineService;
     @Resource
     private PayLogMapper payLogMapper;
+    @Resource
+    private SentinelSupport sentinelSupport;
 
     @Override
     public String createPayPage(Long orderId) {
@@ -83,6 +87,8 @@ public class AlipayPayServiceImpl implements PayService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String handleNotify(Map<String, String> payload) {
+        Entry entry = sentinelSupport.enter("pay.notify");
+        try {
         String tradeStatus = payload.get("trade_status");
         if (!"TRADE_SUCCESS".equals(tradeStatus) && !"TRADE_FINISHED".equals(tradeStatus)) {
             return "success";
@@ -122,6 +128,9 @@ public class AlipayPayServiceImpl implements PayService {
                 .build()
         );
         return "success";
+        } finally {
+            entry.exit();
+        }
     }
 
     private PayLogEntity buildPayLog(OrderEntity order, String payOrderNo, String tradeStatus, Map<String, String> payload) {

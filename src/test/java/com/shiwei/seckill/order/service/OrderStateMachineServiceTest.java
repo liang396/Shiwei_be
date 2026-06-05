@@ -49,15 +49,17 @@ class OrderStateMachineServiceTest {
     @Test
     void shouldChangePendingPayToPaid() {
         orderStateMachineService.setOrderStateMachineConfig(new OrderStateMachineConfig());
-        when(orderMapper.updateStatusWithVersion(anyLong(), anyInt(), anyInt(), anyInt(), nullable(String.class), any(LocalDateTime.class), isNull()))
+        when(orderMapper.updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(LocalDateTime.class), isNull()))
             .thenReturn(1);
 
         OrderEntity order = buildOrder(OrderStatusEnum.PENDING_PAY);
         OrderOperateContext context = OrderOperateContext.builder()
             .operatorType(OperatorTypeEnum.PAY_SYSTEM)
             .operatorId(1L)
-            .payChannel("ALIPAY")
-            .remark("支付成功")
+            .payChannel("MOCK_PAY")
+            .remark("模拟支付成功")
+            .triggerType("PAY_CALLBACK")
+            .requestId("req-001")
             .build();
 
         OrderStatusEnum target = orderStateMachineService.fireEvent(order, OrderEventEnum.PAY_SUCCESS, context);
@@ -66,6 +68,8 @@ class OrderStateMachineServiceTest {
         ArgumentCaptor<OrderStatusLogEntity> logCaptor = ArgumentCaptor.forClass(OrderStatusLogEntity.class);
         verify(orderStatusLogMapper).insert(logCaptor.capture());
         assertEquals(OrderStatusEnum.PAID.getCode(), logCaptor.getValue().getTargetStatus());
+        assertEquals("PAY_CALLBACK", logCaptor.getValue().getTriggerType());
+        assertEquals("req-001", logCaptor.getValue().getRequestId());
 
         ArgumentCaptor<OrderOutboxEntity> outboxCaptor = ArgumentCaptor.forClass(OrderOutboxEntity.class);
         verify(orderOutboxMapper).insert(outboxCaptor.capture());
@@ -83,13 +87,47 @@ class OrderStateMachineServiceTest {
             OrderEventEnum.PAY_SUCCESS,
             OrderOperateContext.builder().operatorType(OperatorTypeEnum.PAY_SYSTEM).build()
         ));
-        verify(orderMapper, never()).updateStatusWithVersion(anyLong(), anyInt(), anyInt(), anyInt(), nullable(String.class), any(), any());
+        verify(orderMapper, never()).updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(), any());
+    }
+
+    @Test
+    void shouldTreatDuplicatePaySuccessAsIdempotentSuccess() {
+        orderStateMachineService.setOrderStateMachineConfig(new OrderStateMachineConfig());
+        OrderEntity order = buildOrder(OrderStatusEnum.PAID);
+
+        OrderStatusEnum target = orderStateMachineService.fireEvent(
+            order,
+            OrderEventEnum.PAY_SUCCESS,
+            OrderOperateContext.builder().operatorType(OperatorTypeEnum.PAY_SYSTEM).build()
+        );
+
+        assertEquals(OrderStatusEnum.PAID, target);
+        verify(orderMapper, never()).updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(), any());
+        verify(orderStatusLogMapper, never()).insert(any());
+        verify(orderOutboxMapper, never()).insert(any());
+    }
+
+    @Test
+    void shouldTreatDuplicateCancelAsIdempotentSuccess() {
+        orderStateMachineService.setOrderStateMachineConfig(new OrderStateMachineConfig());
+        OrderEntity order = buildOrder(OrderStatusEnum.CANCELED);
+
+        OrderStatusEnum target = orderStateMachineService.fireEvent(
+            order,
+            OrderEventEnum.USER_CANCEL,
+            OrderOperateContext.builder().operatorType(OperatorTypeEnum.USER).build()
+        );
+
+        assertEquals(OrderStatusEnum.CANCELED, target);
+        verify(orderMapper, never()).updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(), any());
+        verify(orderStatusLogMapper, never()).insert(any());
+        verify(orderOutboxMapper, never()).insert(any());
     }
 
     @Test
     void shouldRejectConcurrentUpdateFailure() {
         orderStateMachineService.setOrderStateMachineConfig(new OrderStateMachineConfig());
-        when(orderMapper.updateStatusWithVersion(anyLong(), anyInt(), anyInt(), anyInt(), nullable(String.class), nullable(LocalDateTime.class), nullable(LocalDateTime.class)))
+        when(orderMapper.updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), nullable(LocalDateTime.class), nullable(LocalDateTime.class)))
             .thenReturn(0);
 
         OrderEntity order = buildOrder(OrderStatusEnum.PENDING_PAY);
@@ -106,7 +144,6 @@ class OrderStateMachineServiceTest {
         order.setId(1L);
         order.setOrderNo("SW123");
         order.setOrderStatus(status.getCode());
-        order.setVersion(0);
         order.setPayAmount(new BigDecimal("99.00"));
         return order;
     }

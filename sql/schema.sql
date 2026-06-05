@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `seckill_order` (
   `status` tinyint NOT NULL DEFAULT 1,
   `seckill_price` decimal(10,2) NOT NULL,
   `buy_num` int NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`seckill_order_id`)
 );
 
@@ -62,7 +63,6 @@ CREATE TABLE IF NOT EXISTS `t_order` (
   `order_no` varchar(64) NOT NULL,
   `user_id` bigint NOT NULL DEFAULT 1,
   `order_status` tinyint NOT NULL DEFAULT 0,
-  `version` int NOT NULL DEFAULT 0,
   `goods_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `pay_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `t_order` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_no` (`order_no`),
   KEY `idx_user_status` (`user_id`, `order_status`),
+  KEY `idx_user_status_created_id` (`user_id`, `order_status`, `created_at`, `id`),
   KEY `idx_created_at` (`created_at`)
 );
 
@@ -107,8 +108,10 @@ CREATE TABLE IF NOT EXISTS `t_order_status_log` (
   `source_status` tinyint NOT NULL,
   `target_status` tinyint NOT NULL,
   `event_code` varchar(32) NOT NULL,
+  `trigger_type` varchar(32) DEFAULT NULL,
   `operator_type` varchar(32) NOT NULL,
   `operator_id` bigint DEFAULT NULL,
+  `request_id` varchar(64) DEFAULT NULL,
   `remark` varchar(255) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -140,4 +143,20 @@ CREATE TABLE IF NOT EXISTS `t_order_outbox` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_order_outbox_status` (`send_status`, `created_at`)
+);
+
+CREATE TABLE IF NOT EXISTS `t_message_processed` (
+  `event_id` varchar(64) NOT NULL,
+  `processed_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`event_id`)
+);
+
+CREATE TABLE IF NOT EXISTS `t_message_dead_letter` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `biz_key` varchar(64) NOT NULL,
+  `event_type` varchar(64) NOT NULL,
+  `payload` text,
+  `fail_reason` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 );

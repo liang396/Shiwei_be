@@ -17,8 +17,10 @@ public class OrderStatusLogEntity {
     private Integer sourceStatus;
     private Integer targetStatus;
     private String eventCode;
+    private String triggerType;
     private String operatorType;
     private Long operatorId;
+    private String requestId;
     private String remark;
     private LocalDateTime createdAt;
 }

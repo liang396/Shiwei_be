@@ -13,5 +13,7 @@ public class OrderOperateContext {
     private Long operatorId;
     private String remark;
     private String payChannel;
+    private String triggerType;
+    private String requestId;
     private LocalDateTime operateTime;
 }

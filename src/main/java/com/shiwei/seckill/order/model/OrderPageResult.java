@@ -8,5 +8,6 @@ import java.util.List;
 public class OrderPageResult {
     private List<OrderRecord> records;
     private Long nextLastId;
+    private String nextCreatedTime;
     private boolean hasMore;
 }

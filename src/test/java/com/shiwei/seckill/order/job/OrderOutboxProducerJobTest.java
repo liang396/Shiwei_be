@@ -1,8 +1,10 @@
 package com.shiwei.seckill.order.job;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.shiwei.seckill.order.entity.MessageDeadLetterEntity;
 import com.shiwei.seckill.order.entity.OrderOutboxEntity;
 import com.shiwei.seckill.order.enums.OutboxSendStatusEnum;
+import com.shiwei.seckill.order.mapper.MessageDeadLetterMapper;
 import com.shiwei.seckill.order.mapper.OrderOutboxMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +31,8 @@ import static org.mockito.Mockito.when;
 class OrderOutboxProducerJobTest {
     @Mock
     private OrderOutboxMapper orderOutboxMapper;
+    @Mock
+    private MessageDeadLetterMapper messageDeadLetterMapper;
     @Mock
     private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -93,6 +97,25 @@ class OrderOutboxProducerJobTest {
         verify(kafkaTemplate, times(2)).send(anyString(), anyString(), anyString());
         verify(orderOutboxMapper).updateById(first);
         verify(orderOutboxMapper).updateById(second);
+    }
+
+    @Test
+    void shouldMoveToDeadLetterAfterThreeFailures() {
+        OrderOutboxEntity outbox = buildOutbox(12L, "SW125", "USER_CANCEL");
+        outbox.setRetryCount(2);
+        when(orderOutboxMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Collections.singletonList(outbox));
+        doThrow(new RuntimeException("kafka down")).when(kafkaTemplate).send(anyString(), anyString(), anyString());
+
+        orderOutboxProducerJob.publishPendingEvents();
+
+        ArgumentCaptor<OrderOutboxEntity> outboxCaptor = ArgumentCaptor.forClass(OrderOutboxEntity.class);
+        verify(orderOutboxMapper).updateById(outboxCaptor.capture());
+        assertEquals(3, outboxCaptor.getValue().getRetryCount().intValue());
+        assertEquals(OutboxSendStatusEnum.DEAD.getCode(), outboxCaptor.getValue().getSendStatus());
+
+        ArgumentCaptor<MessageDeadLetterEntity> deadCaptor = ArgumentCaptor.forClass(MessageDeadLetterEntity.class);
+        verify(messageDeadLetterMapper).insert(deadCaptor.capture());
+        assertEquals("SW125", deadCaptor.getValue().getBizKey());
     }
 
     private OrderOutboxEntity buildOutbox(Long id, String bizKey, String eventType) {

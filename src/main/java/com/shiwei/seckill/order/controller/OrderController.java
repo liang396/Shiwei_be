@@ -25,8 +25,8 @@ public class OrderController {
     }
 
     @GetMapping("/page")
-    public ApiResponse<?> page(Long lastId, Integer size) {
-        return ApiResponse.success(orderService.page(lastId, size));
+    public ApiResponse<?> page(Long lastId, Integer size, String lastCreatedTime) {
+        return ApiResponse.success(orderService.page(lastId, size, lastCreatedTime));
     }
 
     @GetMapping("/{orderId}")
