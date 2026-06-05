@@ -7,7 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.alibaba.csp.sentinel.Entry;
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.common.id.SnowflakeIdGenerator;
 import com.shiwei.seckill.common.monitoring.OrderMetrics;
+import com.shiwei.seckill.common.security.AesSecurityUtil;
+import com.shiwei.seckill.common.security.DesensitizeUtil;
+import com.shiwei.seckill.common.security.RequestRateLimitService;
 import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
@@ -86,14 +90,22 @@ public class OrderServiceImpl implements OrderService {
     private SentinelSupport sentinelSupport;
     @Resource
     private OrderMetrics orderMetrics;
+    @Resource
+    private RequestRateLimitService requestRateLimitService;
+    @Resource
+    private AesSecurityUtil aesSecurityUtil;
+    @Resource
+    private SnowflakeIdGenerator snowflakeIdGenerator;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderRecord submit(OrderSubmitReq req) {
         Entry entry = sentinelSupport.enter("order.submit");
         try {
+        requestRateLimitService.guard("rate:order:submit:" + DEFAULT_USER_ID, 20);
         orderDuplicateGuardService.guardSubmit(DEFAULT_USER_ID);
         OrderEntity order = new OrderEntity();
+        order.setId(snowflakeIdGenerator.nextId());
         order.setOrderNo(generateOrderNo());
         order.setUserId(DEFAULT_USER_ID);
         order.setOrderStatus(OrderStatusEnum.PENDING_PAY.getCode());
@@ -104,14 +116,15 @@ public class OrderServiceImpl implements OrderService {
         order.setSourceType(OrderSourceTypeEnum.NORMAL.getCode());
         order.setAddressId(req.getAddressId());
         order.setConsignee(req.getConsignee());
-        order.setMobile(req.getMobile());
-        order.setFullAddress(req.getAddress());
+        order.setMobile(req.getMobile() == null ? null : aesSecurityUtil.encrypt(req.getMobile()));
+        order.setFullAddress(req.getAddress() == null ? null : aesSecurityUtil.encrypt(req.getAddress()));
         order.setCouponId(req.getCouponId());
         order.setCouponTitle(req.getCouponTitle());
         orderMapper.insert(order);
 
         for (OrderItemPayload item : safeItems(req.getItems())) {
             OrderItemEntity orderItem = new OrderItemEntity();
+            orderItem.setId(snowflakeIdGenerator.nextId());
             orderItem.setOrderId(order.getId());
             orderItem.setOrderNo(order.getOrderNo());
             orderItem.setProductId(item.getProductId());
@@ -327,8 +340,8 @@ public class OrderServiceImpl implements OrderService {
         record.setOrderStatus(OrderStatusEnum.fromCode(order.getOrderStatus()).getDesc());
         record.setAddressId(order.getAddressId());
         record.setConsignee(order.getConsignee());
-        record.setMobile(order.getMobile());
-        record.setAddress(order.getFullAddress());
+        record.setMobile(DesensitizeUtil.mobile(aesSecurityUtil.decryptOrRaw(order.getMobile())));
+        record.setAddress(DesensitizeUtil.address(aesSecurityUtil.decryptOrRaw(order.getFullAddress())));
         record.setCouponId(order.getCouponId());
         record.setCouponTitle(order.getCouponTitle());
         record.setGoodsAmount(defaultValue(order.getGoodsAmount()));
@@ -357,7 +370,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String generateOrderNo() {
-        return "SW" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "SW" + snowflakeIdGenerator.nextId();
     }
 
     private BigDecimal defaultValue(BigDecimal value) {

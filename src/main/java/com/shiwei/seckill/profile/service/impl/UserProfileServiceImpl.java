@@ -3,11 +3,15 @@ package com.shiwei.seckill.profile.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiwei.seckill.auth.model.UserAccount;
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.common.security.AesSecurityUtil;
+import com.shiwei.seckill.common.security.DesensitizeUtil;
+import com.shiwei.seckill.common.security.RequestRateLimitService;
 import com.shiwei.seckill.profile.model.UserProfileSaveReq;
 import com.shiwei.seckill.profile.service.UserProfileService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +22,11 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path storagePath = Paths.get("data", "user-profile.json");
     private UserAccount profile;
+
+    @Resource
+    private AesSecurityUtil aesSecurityUtil;
+    @Resource
+    private RequestRateLimitService requestRateLimitService;
 
     @PostConstruct
     public void init() {
@@ -35,6 +44,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     public synchronized UserAccount save(UserProfileSaveReq req) {
+        requestRateLimitService.guard("rate:profile:save:1", 10);
         if (req.getNickname() == null || req.getNickname().trim().isEmpty()) {
             throw new BizException("请填写昵称");
         }
@@ -69,7 +79,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         user.setUserId(1L);
         user.setUsername("demo");
         user.setNickname("拾味用户");
-        user.setPhone("13812345678");
+        user.setPhone(aesSecurityUtil.encrypt("13812345678"));
         user.setAvatar("🙂");
         return user;
     }
@@ -79,7 +89,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         user.setUserId(source.getUserId());
         user.setUsername(source.getUsername());
         user.setNickname(source.getNickname());
-        user.setPhone(source.getPhone());
+        user.setPhone(DesensitizeUtil.mobile(aesSecurityUtil.decryptOrRaw(source.getPhone())));
         user.setAvatar(source.getAvatar());
         return user;
     }

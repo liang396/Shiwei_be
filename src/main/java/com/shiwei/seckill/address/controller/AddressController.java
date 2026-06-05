@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.Collections;
 
 @RestController
@@ -31,7 +32,7 @@ public class AddressController {
     }
 
     @PostMapping("/save")
-    public ApiResponse<?> save(@RequestBody AddressSaveReq req) {
+    public ApiResponse<?> save(@Valid @RequestBody AddressSaveReq req) {
         return ApiResponse.successMessage("地址保存成功", addressService.save(req));
     }
 

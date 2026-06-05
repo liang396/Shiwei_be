@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("t_order")
 public class OrderEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private String orderNo;
     private Long userId;

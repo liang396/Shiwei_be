@@ -1,6 +1,12 @@
 package com.shiwei.seckill.order.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.shiwei.seckill.common.id.SnowflakeIdGenerator;
+import com.shiwei.seckill.common.monitoring.OrderMetrics;
+import com.shiwei.seckill.common.security.AesSecurityUtil;
+import com.shiwei.seckill.common.security.RequestRateLimitService;
+import com.shiwei.seckill.common.sentinel.SentinelSupport;
+import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.entity.OrderItemEntity;
 import com.shiwei.seckill.order.mapper.OrderItemMapper;
@@ -13,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,7 +33,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +52,22 @@ class OrderServiceQueryOptimizationTest {
     private OrderDuplicateGuardService orderDuplicateGuardService;
     @Mock
     private Cache<Object, Object> caffeineBuilder;
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+    @Mock
+    private OrderCacheNotifier orderCacheNotifier;
+    @Mock
+    private SentinelSupport sentinelSupport;
+    @Mock
+    private OrderMetrics orderMetrics;
+    @Mock
+    private RequestRateLimitService requestRateLimitService;
+    @Mock
+    private AesSecurityUtil aesSecurityUtil;
+    @Mock
+    private SnowflakeIdGenerator snowflakeIdGenerator;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -57,6 +80,9 @@ class OrderServiceQueryOptimizationTest {
             localCache.put(invocation.getArgument(0), invocation.getArgument(1));
             return null;
         }).when(caffeineBuilder).put(any(), any());
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(any())).thenReturn(null);
+        when(aesSecurityUtil.decryptOrRaw(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderEntity first = buildOrder(1L, "SW1");
         OrderEntity second = buildOrder(2L, "SW2");

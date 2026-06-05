@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @Data
 @TableName("t_order_item")
 public class OrderItemEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long orderId;
     private String orderNo;

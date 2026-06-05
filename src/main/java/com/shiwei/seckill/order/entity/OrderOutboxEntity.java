@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("t_order_outbox")
 public class OrderOutboxEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private String bizKey;
     private String eventType;

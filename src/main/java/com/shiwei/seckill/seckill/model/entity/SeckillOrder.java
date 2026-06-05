@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("seckill_order")
 public class SeckillOrder {
-    @TableId(value = "seckill_order_id", type = IdType.AUTO)
+    @TableId(value = "seckill_order_id", type = IdType.ASSIGN_ID)
     private Long seckillOrderId;
     private Long activityId;
     private Long seckillGoodsId;

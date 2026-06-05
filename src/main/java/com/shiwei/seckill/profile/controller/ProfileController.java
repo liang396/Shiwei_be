@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -62,7 +63,7 @@ public class ProfileController {
     }
 
     @PostMapping("/user/save")
-    public ApiResponse<?> saveUser(@RequestBody UserProfileSaveReq req) {
+    public ApiResponse<?> saveUser(@Valid @RequestBody UserProfileSaveReq req) {
         return ApiResponse.successMessage("个人信息保存成功", userProfileService.save(req));
     }
 

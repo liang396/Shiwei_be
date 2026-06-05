@@ -3,6 +3,9 @@ package com.shiwei.seckill.order.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.alibaba.csp.sentinel.Entry;
 import com.shiwei.seckill.common.monitoring.OrderMetrics;
+import com.shiwei.seckill.common.id.SnowflakeIdGenerator;
+import com.shiwei.seckill.common.security.AesSecurityUtil;
+import com.shiwei.seckill.common.security.RequestRateLimitService;
 import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
@@ -51,6 +54,12 @@ class OrderServiceDuplicateGuardTest {
     @Mock
     private OrderMetrics orderMetrics;
     @Mock
+    private RequestRateLimitService requestRateLimitService;
+    @Mock
+    private AesSecurityUtil aesSecurityUtil;
+    @Mock
+    private SnowflakeIdGenerator snowflakeIdGenerator;
+    @Mock
     private Entry sentinelEntry;
 
     @InjectMocks
@@ -60,6 +69,7 @@ class OrderServiceDuplicateGuardTest {
     void shouldGuardSubmitBeforePersist() {
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(sentinelSupport.enter("order.submit")).thenReturn(sentinelEntry);
+        when(snowflakeIdGenerator.nextId()).thenReturn(1L, 2L, 3L);
         when(orderMapper.insert(org.mockito.ArgumentMatchers.any(OrderEntity.class))).thenAnswer(invocation -> {
             OrderEntity entity = invocation.getArgument(0);
             entity.setId(1L);

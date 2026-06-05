@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("t_order_status_log")
 public class OrderStatusLogEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long orderId;
     private String orderNo;

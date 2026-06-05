@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("t_pay_log")
 public class PayLogEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long orderId;
     private String orderNo;

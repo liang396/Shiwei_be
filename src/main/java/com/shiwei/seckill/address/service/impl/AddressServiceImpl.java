@@ -6,9 +6,14 @@ import com.shiwei.seckill.address.model.AddressRecord;
 import com.shiwei.seckill.address.model.AddressSaveReq;
 import com.shiwei.seckill.address.service.AddressService;
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.common.id.SnowflakeIdGenerator;
+import com.shiwei.seckill.common.security.AesSecurityUtil;
+import com.shiwei.seckill.common.security.DesensitizeUtil;
+import com.shiwei.seckill.common.security.RequestRateLimitService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,60 +22,72 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AddressServiceImpl implements AddressService {
     private static final TypeReference<List<AddressRecord>> ADDRESS_LIST_TYPE = new TypeReference<List<AddressRecord>>() {};
 
     private final CopyOnWriteArrayList<AddressRecord> records = new CopyOnWriteArrayList<>();
-    private final AtomicLong idGenerator = new AtomicLong(1L);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path storagePath = Paths.get("data", "addresses.json");
+
+    @Resource
+    private SnowflakeIdGenerator snowflakeIdGenerator;
+    @Resource
+    private AesSecurityUtil aesSecurityUtil;
+    @Resource
+    private RequestRateLimitService requestRateLimitService;
 
     @PostConstruct
     public void initDefaults() {
         loadFromFile();
         if (!records.isEmpty()) {
-            syncIdGenerator();
             return;
         }
 
-        createDefault("张三", "13812345678", "北京市朝阳区光华路1号", true);
-        createDefault("李四", "13900001234", "杭州市西湖区曙光路79号", false);
+        createDefault("张三", "13812345678", "北京市朝阳区光华路 8 号", true);
+        createDefault("李四", "13900001234", "杭州市西湖区曙光路 99 号", false);
         persist();
     }
 
     @Override
     public List<AddressRecord> list() {
-        List<AddressRecord> result = new ArrayList<>(records);
+        List<AddressRecord> result = new ArrayList<>();
+        for (AddressRecord item : records) {
+            result.add(maskCopy(item));
+        }
         result.sort(Comparator.comparing(AddressRecord::getIsDefault).reversed().thenComparing(AddressRecord::getAddressId));
         return result;
     }
 
     @Override
     public AddressRecord detail(Long addressId) {
-        return records.stream().filter(item -> item.getAddressId().equals(addressId)).findFirst().orElse(null);
+        AddressRecord record = records.stream().filter(item -> item.getAddressId().equals(addressId)).findFirst().orElse(null);
+        return record == null ? null : maskCopy(record);
     }
 
     @Override
     public synchronized AddressRecord save(AddressSaveReq req) {
+        requestRateLimitService.guard("rate:address:save:1", 20);
         validate(req);
 
-        AddressRecord record = req.getAddressId() == null ? new AddressRecord() : detail(req.getAddressId());
+        AddressRecord record = req.getAddressId() == null ? new AddressRecord() : records.stream()
+            .filter(item -> item.getAddressId().equals(req.getAddressId()))
+            .findFirst()
+            .orElse(null);
         if (record == null) {
             throw new BizException("收货地址不存在");
         }
 
         boolean shouldDefault = Boolean.TRUE.equals(req.getIsDefault()) || records.isEmpty();
         if (req.getAddressId() == null) {
-            record.setAddressId(idGenerator.getAndIncrement());
+            record.setAddressId(snowflakeIdGenerator.nextId());
             records.add(record);
         }
 
         record.setConsignee(req.getConsignee().trim());
-        record.setMobile(req.getMobile().trim());
-        record.setAddress(req.getAddress().trim());
+        record.setMobile(aesSecurityUtil.encrypt(req.getMobile().trim()));
+        record.setAddress(aesSecurityUtil.encrypt(req.getAddress().trim()));
         record.setIsDefault(shouldDefault);
 
         if (shouldDefault) {
@@ -80,12 +97,12 @@ public class AddressServiceImpl implements AddressService {
         }
 
         persist();
-        return record;
+        return maskCopy(record);
     }
 
     @Override
     public synchronized void delete(Long addressId) {
-        AddressRecord target = detail(addressId);
+        AddressRecord target = records.stream().filter(item -> item.getAddressId().equals(addressId)).findFirst().orElse(null);
         if (target == null) {
             throw new BizException("收货地址不存在");
         }
@@ -100,10 +117,10 @@ public class AddressServiceImpl implements AddressService {
 
     private void createDefault(String consignee, String mobile, String address, boolean isDefault) {
         AddressRecord record = new AddressRecord();
-        record.setAddressId(idGenerator.getAndIncrement());
+        record.setAddressId(snowflakeIdGenerator.nextId());
         record.setConsignee(consignee);
-        record.setMobile(mobile);
-        record.setAddress(address);
+        record.setMobile(aesSecurityUtil.encrypt(mobile));
+        record.setAddress(aesSecurityUtil.encrypt(address));
         record.setIsDefault(isDefault);
         records.add(record);
     }
@@ -130,7 +147,6 @@ public class AddressServiceImpl implements AddressService {
         if (!Files.exists(storagePath)) {
             return;
         }
-
         try {
             List<AddressRecord> loaded = objectMapper.readValue(storagePath.toFile(), ADDRESS_LIST_TYPE);
             records.clear();
@@ -143,14 +159,19 @@ public class AddressServiceImpl implements AddressService {
     private void persist() {
         try {
             Files.createDirectories(storagePath.getParent());
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(storagePath.toFile(), list());
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(storagePath.toFile(), records);
         } catch (IOException e) {
             throw new BizException("收货地址保存失败");
         }
     }
 
-    private void syncIdGenerator() {
-        long maxId = records.stream().map(AddressRecord::getAddressId).filter(id -> id != null).max(Long::compareTo).orElse(0L);
-        idGenerator.set(maxId + 1);
+    private AddressRecord maskCopy(AddressRecord source) {
+        AddressRecord copy = new AddressRecord();
+        copy.setAddressId(source.getAddressId());
+        copy.setConsignee(source.getConsignee());
+        copy.setMobile(DesensitizeUtil.mobile(aesSecurityUtil.decryptOrRaw(source.getMobile())));
+        copy.setAddress(DesensitizeUtil.address(aesSecurityUtil.decryptOrRaw(source.getAddress())));
+        copy.setIsDefault(source.getIsDefault());
+        return copy;
     }
 }

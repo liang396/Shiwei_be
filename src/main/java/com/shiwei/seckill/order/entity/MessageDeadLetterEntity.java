@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("t_message_dead_letter")
 public class MessageDeadLetterEntity {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private String bizKey;
     private String eventType;

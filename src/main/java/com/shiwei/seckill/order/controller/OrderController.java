@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.Collections;
 
 @RestController
@@ -35,7 +36,7 @@ public class OrderController {
     }
 
     @PostMapping("/submit")
-    public ApiResponse<?> submit(@RequestBody OrderSubmitReq req) {
+    public ApiResponse<?> submit(@Valid @RequestBody OrderSubmitReq req) {
         return ApiResponse.successMessage("订单提交成功", orderService.submit(req));
     }
 
