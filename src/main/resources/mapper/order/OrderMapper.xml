@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shiwei.seckill.order.mapper.OrderMapper">
+
+    <update id="updateStatusWithVersion">
+        UPDATE t_order
+        SET order_status = #{targetStatus},
+            version = version + 1,
+            updated_at = NOW(),
+            pay_channel = CASE
+                WHEN #{payChannel} IS NOT NULL AND #{payChannel} != '' THEN #{payChannel}
+                ELSE pay_channel
+            END,
+            pay_time = CASE
+                WHEN #{payTime} IS NOT NULL THEN #{payTime}
+                ELSE pay_time
+            END,
+            canceled_time = CASE
+                WHEN #{canceledTime} IS NOT NULL THEN #{canceledTime}
+                ELSE canceled_time
+            END
+        WHERE id = #{orderId}
+          AND order_status = #{sourceStatus}
+          AND version = #{oldVersion}
+    </update>
+
+</mapper>
