@@ -5,3 +5,4 @@ public class BizException extends RuntimeException {
         super(message);
     }
 }
+

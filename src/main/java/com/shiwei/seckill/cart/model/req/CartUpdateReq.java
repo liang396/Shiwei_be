@@ -7,3 +7,4 @@ public class CartUpdateReq {
     private Long cartId;
     private Integer quantity;
 }
+

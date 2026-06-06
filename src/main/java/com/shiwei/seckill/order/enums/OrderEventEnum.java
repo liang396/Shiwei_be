@@ -10,3 +10,4 @@ public enum OrderEventEnum {
     APPLY_AFTER_SALE,
     REFUND_FINISH
 }
+

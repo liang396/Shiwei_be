@@ -5,3 +5,4 @@ public interface SmsCodeService {
 
     boolean verifyCode(String phone, String code);
 }
+

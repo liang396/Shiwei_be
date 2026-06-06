@@ -2,8 +2,8 @@ package com.shiwei.seckill.auth.model;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 @Data
 public class RegisterRequest {
@@ -19,3 +19,4 @@ public class RegisterRequest {
     @NotBlank(message = "验证码不能为空")
     private String code;
 }
+

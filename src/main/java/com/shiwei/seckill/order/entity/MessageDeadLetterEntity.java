@@ -18,3 +18,4 @@ public class MessageDeadLetterEntity {
     private String failReason;
     private LocalDateTime createdAt;
 }
+

@@ -8,3 +8,4 @@ import com.shiwei.seckill.order.service.support.OrderOperateContext;
 public interface OrderStateMachineService {
     OrderStatusEnum fireEvent(OrderEntity order, OrderEventEnum event, OrderOperateContext context);
 }
+

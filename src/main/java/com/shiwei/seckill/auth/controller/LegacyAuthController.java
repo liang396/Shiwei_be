@@ -51,3 +51,4 @@ public class LegacyAuthController {
         return ApiResponse.successMessage("验证码已生成（当前为开发模式）", code);
     }
 }
+

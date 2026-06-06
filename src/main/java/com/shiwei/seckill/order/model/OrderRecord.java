@@ -14,13 +14,20 @@ public class OrderRecord {
     private Long addressId;
     private String consignee;
     private String mobile;
+    private String mobileRaw;
     private String address;
+    private String addressRaw;
     private Long couponId;
     private String couponTitle;
+    private String couponStatus;
     private BigDecimal goodsAmount;
     private BigDecimal discountAmount;
     private BigDecimal payAmount;
     private String orderStatus;
     private String payChannel;
+    private String cancelReason;
+    private Long payExpireAtMillis;
+    private Long payRemainSeconds;
     private List<OrderItemPayload> items;
 }
+

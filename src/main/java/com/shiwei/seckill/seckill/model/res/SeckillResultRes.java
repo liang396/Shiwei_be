@@ -8,3 +8,4 @@ public class SeckillResultRes {
     private String message;
     private Long orderId;
 }
+

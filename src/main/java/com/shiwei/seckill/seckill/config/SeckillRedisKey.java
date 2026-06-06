@@ -24,3 +24,4 @@ public final class SeckillRedisKey {
         return "seckill:mq:consume:" + messageId;
     }
 }
+

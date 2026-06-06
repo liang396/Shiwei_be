@@ -9,3 +9,4 @@ public interface SeckillStockService {
 
     String getResult(Long activityId, Long userId);
 }
+

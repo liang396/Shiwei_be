@@ -24,3 +24,4 @@ public class CacheConfig {
                 .expireAfterWrite(10, TimeUnit.MINUTES);
     }
 }
+

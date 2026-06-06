@@ -11,3 +11,4 @@ public class OrderPageResult {
     private String nextCreatedTime;
     private boolean hasMore;
 }
+

@@ -16,3 +16,4 @@ public class SeckillGoodsSnapshot {
     private Long productItemId;
     private BigDecimal seckillPrice;
 }
+

@@ -5,3 +5,4 @@ import com.shiwei.seckill.order.entity.OrderStatusLogEntity;
 
 public interface OrderStatusLogMapper extends BaseMapper<OrderStatusLogEntity> {
 }
+

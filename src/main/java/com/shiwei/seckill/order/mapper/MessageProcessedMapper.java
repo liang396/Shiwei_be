@@ -5,3 +5,4 @@ import com.shiwei.seckill.order.entity.MessageProcessedEntity;
 
 public interface MessageProcessedMapper extends BaseMapper<MessageProcessedEntity> {
 }
+

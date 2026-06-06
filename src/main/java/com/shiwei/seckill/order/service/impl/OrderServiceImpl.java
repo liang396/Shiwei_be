@@ -16,13 +16,16 @@ import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.entity.OrderItemEntity;
+import com.shiwei.seckill.order.entity.OrderStatusLogEntity;
 import com.shiwei.seckill.order.enums.OperatorTypeEnum;
 import com.shiwei.seckill.order.enums.OrderEventEnum;
 import com.shiwei.seckill.order.enums.OrderSourceTypeEnum;
 import com.shiwei.seckill.order.enums.OrderStatusEnum;
 import com.shiwei.seckill.order.mapper.OrderItemMapper;
 import com.shiwei.seckill.order.mapper.OrderMapper;
+import com.shiwei.seckill.order.mapper.OrderStatusLogMapper;
 import com.shiwei.seckill.order.model.OrderItemPayload;
+import com.shiwei.seckill.order.model.OrderDetailUpdateReq;
 import com.shiwei.seckill.order.model.OrderPageResult;
 import com.shiwei.seckill.order.model.OrderRecord;
 import com.shiwei.seckill.order.model.OrderSubmitReq;
@@ -32,14 +35,16 @@ import com.shiwei.seckill.order.service.OrderStateMachineService;
 import com.shiwei.seckill.order.service.OrderTimeoutService;
 import com.shiwei.seckill.order.service.support.OrderOperateContext;
 import com.shiwei.seckill.promotion.service.CouponService;
+import com.shiwei.seckill.promotion.model.Coupon;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,6 +79,8 @@ public class OrderServiceImpl implements OrderService {
     private OrderMapper orderMapper;
     @Resource
     private OrderItemMapper orderItemMapper;
+    @Resource
+    private OrderStatusLogMapper orderStatusLogMapper;
     @Resource
     private OrderStateMachineService orderStateMachineService;
     @Resource
@@ -139,7 +146,8 @@ public class OrderServiceImpl implements OrderService {
             couponService.consume(DEFAULT_USER_ID, req.getCouponId(), defaultValue(req.getGoodsAmount()));
         }
         orderTimeoutService.registerOrderTimeout(order.getOrderNo(), System.currentTimeMillis() + 30L * 60L * 1000L);
-        OrderRecord record = toRecord(order, listItems(order.getId()));
+        OrderEntity persistedOrder = getRequiredOrder(order.getId());
+        OrderRecord record = toRecord(persistedOrder, listItems(persistedOrder.getId()));
         refreshDetailCaches(record);
         invalidateListCaches();
         orderMetrics.markSubmit();
@@ -187,12 +195,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderPageResult page(Long lastId, Integer size, String lastCreatedTime) {
+    public OrderPageResult page(Long lastId, Integer size, String lastCreatedTime, Integer status) {
         int pageSize = normalizePageSize(size);
         LambdaQueryWrapper<OrderEntity> wrapper = new LambdaQueryWrapper<OrderEntity>()
             .orderByDesc(OrderEntity::getCreatedAt)
             .orderByDesc(OrderEntity::getId)
             .last("limit " + pageSize);
+        if (status != null) {
+            wrapper.eq(OrderEntity::getOrderStatus, status);
+        }
         LocalDateTime cursorTime = parseCursorTime(lastCreatedTime);
         if (cursorTime != null && lastId != null && lastId > 0) {
             wrapper.and(query -> query
@@ -267,6 +278,63 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderRecord detailByOrderNo(String orderNo) {
+        OrderEntity order = getEntityByOrderNo(orderNo);
+        if (order == null) {
+            return null;
+        }
+        return detail(order.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderRecord updateDetailOptions(Long orderId, OrderDetailUpdateReq req) {
+        OrderEntity order = getRequiredOrder(orderId);
+        if (!OrderStatusEnum.PENDING_PAY.equals(OrderStatusEnum.fromCode(order.getOrderStatus()))) {
+            throw new BizException("当前订单状态不允许修改支付信息");
+        }
+        if (req.getAddressId() != null) {
+            order.setAddressId(req.getAddressId());
+        }
+        if (req.getConsignee() != null && !req.getConsignee().trim().isEmpty()) {
+            order.setConsignee(req.getConsignee().trim());
+        }
+        if (req.getMobile() != null && !req.getMobile().trim().isEmpty()) {
+            order.setMobile(aesSecurityUtil.encrypt(req.getMobile().trim()));
+        }
+        if (req.getAddress() != null && !req.getAddress().trim().isEmpty()) {
+            order.setFullAddress(aesSecurityUtil.encrypt(req.getAddress().trim()));
+        }
+        if (req.getCouponId() != null) {
+            Coupon coupon = couponService.findAvailableByUser(DEFAULT_USER_ID, req.getCouponId());
+            if (coupon == null) {
+                throw new BizException("优惠券不可用");
+            }
+            BigDecimal threshold = BigDecimal.valueOf(coupon.getThresholdAmount() == null ? 0 : coupon.getThresholdAmount());
+            if (defaultValue(order.getGoodsAmount()).compareTo(threshold) < 0) {
+                throw new BizException("当前订单未达到优惠券使用门槛");
+            }
+            BigDecimal discountAmount = parseCouponDiscount(coupon.getValue());
+            order.setCouponId(coupon.getCouponId());
+            order.setCouponTitle(coupon.getTitle());
+            order.setDiscountAmount(discountAmount);
+            order.setPayAmount(defaultValue(order.getGoodsAmount()).subtract(discountAmount).max(BigDecimal.ZERO));
+        } else {
+            order.setCouponId(null);
+            order.setCouponTitle(null);
+            order.setDiscountAmount(BigDecimal.ZERO);
+            order.setPayAmount(defaultValue(order.getGoodsAmount()));
+        }
+        if (req.getPayChannel() != null && !req.getPayChannel().trim().isEmpty()) {
+            order.setPayChannel(req.getPayChannel().trim());
+        }
+        orderMapper.updateById(order);
+        invalidateDetailCaches(orderId);
+        invalidateListCaches();
+        return detail(orderId);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderRecord cancel(Long orderId) {
         OrderEntity order = getRequiredOrder(orderId);
@@ -332,6 +400,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderRecord toRecord(OrderEntity order, List<OrderItemEntity> items) {
+        String mobileRaw = aesSecurityUtil.decryptOrRaw(order.getMobile());
+        String addressRaw = aesSecurityUtil.decryptOrRaw(order.getFullAddress());
         OrderRecord record = new OrderRecord();
         record.setOrderId(order.getId());
         record.setOrderNo(order.getOrderNo());
@@ -340,16 +410,55 @@ public class OrderServiceImpl implements OrderService {
         record.setOrderStatus(OrderStatusEnum.fromCode(order.getOrderStatus()).getDesc());
         record.setAddressId(order.getAddressId());
         record.setConsignee(order.getConsignee());
-        record.setMobile(DesensitizeUtil.mobile(aesSecurityUtil.decryptOrRaw(order.getMobile())));
-        record.setAddress(DesensitizeUtil.address(aesSecurityUtil.decryptOrRaw(order.getFullAddress())));
+        record.setMobile(DesensitizeUtil.mobile(mobileRaw));
+        record.setMobileRaw(mobileRaw);
+        record.setAddress(DesensitizeUtil.address(addressRaw));
+        record.setAddressRaw(addressRaw);
         record.setCouponId(order.getCouponId());
         record.setCouponTitle(order.getCouponTitle());
+        record.setCouponStatus(order.getCouponId() == null ? "UNSELECTED" : "CLAIMED");
         record.setGoodsAmount(defaultValue(order.getGoodsAmount()));
         record.setDiscountAmount(defaultValue(order.getDiscountAmount()));
         record.setPayAmount(defaultValue(order.getPayAmount()));
         record.setPayChannel(order.getPayChannel());
+        record.setCancelReason(resolveCancelReason(order));
+        if (OrderStatusEnum.PENDING_PAY.equals(OrderStatusEnum.fromCode(order.getOrderStatus())) && order.getCreatedAt() != null) {
+            long expireAtMillis = order.getCreatedAt()
+                .plusMinutes(30)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+            long remainSeconds = Math.max(0L, (expireAtMillis - System.currentTimeMillis()) / 1000L);
+            record.setPayExpireAtMillis(expireAtMillis);
+            record.setPayRemainSeconds(remainSeconds);
+        }
         record.setItems(toPayloads(items));
         return record;
+    }
+
+    private String resolveCancelReason(OrderEntity order) {
+        if (!OrderStatusEnum.CANCELED.equals(OrderStatusEnum.fromCode(order.getOrderStatus()))) {
+            return null;
+        }
+        OrderStatusLogEntity latestCancelLog = orderStatusLogMapper.selectOne(
+            new LambdaQueryWrapper<OrderStatusLogEntity>()
+                .eq(OrderStatusLogEntity::getOrderId, order.getId())
+                .eq(OrderStatusLogEntity::getTargetStatus, OrderStatusEnum.CANCELED.getCode())
+                .orderByDesc(OrderStatusLogEntity::getCreatedAt)
+                .last("limit 1")
+        );
+        if (latestCancelLog == null || latestCancelLog.getEventCode() == null) {
+            return "订单已取消";
+        }
+        if (OrderEventEnum.PAY_TIMEOUT.name().equals(latestCancelLog.getEventCode())) {
+            return "超时未支付";
+        }
+        if (OrderEventEnum.USER_CANCEL.name().equals(latestCancelLog.getEventCode())) {
+            return "用户手动取消";
+        }
+        return latestCancelLog.getRemark() == null || latestCancelLog.getRemark().trim().isEmpty()
+            ? "订单已取消"
+            : latestCancelLog.getRemark();
     }
 
     private List<OrderItemPayload> toPayloads(List<OrderItemEntity> items) {
@@ -358,6 +467,7 @@ public class OrderServiceImpl implements OrderService {
             OrderItemPayload payload = new OrderItemPayload();
             payload.setProductId(item.getProductId());
             payload.setProductName(item.getProductName());
+            payload.setProductImage(item.getProductImage());
             payload.setPrice(item.getPrice());
             payload.setQuantity(item.getQuantity());
             payloads.add(payload);
@@ -375,6 +485,21 @@ public class OrderServiceImpl implements OrderService {
 
     private BigDecimal defaultValue(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal parseCouponDiscount(String couponValue) {
+        if (couponValue == null || couponValue.trim().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\d+").matcher(couponValue);
+        java.util.List<String> numbers = new java.util.ArrayList<>();
+        while (matcher.find()) {
+            numbers.add(matcher.group());
+        }
+        if (numbers.size() < 2) {
+            return BigDecimal.ZERO;
+        }
+        return new BigDecimal(numbers.get(1));
     }
 
     private int normalizePageSize(Integer size) {
@@ -538,3 +663,4 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 }
+

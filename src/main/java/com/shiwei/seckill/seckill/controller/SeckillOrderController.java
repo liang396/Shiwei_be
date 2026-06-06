@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @RestController
 @RequestMapping("/seckill/order")
@@ -28,3 +28,4 @@ public class SeckillOrderController {
         return ApiResponse.success(seckillOrderService.queryResult(1L, activityId));
     }
 }
+

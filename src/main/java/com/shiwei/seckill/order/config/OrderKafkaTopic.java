@@ -6,3 +6,4 @@ public final class OrderKafkaTopic {
     private OrderKafkaTopic() {
     }
 }
+

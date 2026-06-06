@@ -11,6 +11,9 @@ public class Coupon {
     private String tag;
     private String scope;
     private Integer thresholdAmount;
+    private Integer discountAmount;
+    private String benefitType;
     private String status;
     private boolean claimed;
 }
+

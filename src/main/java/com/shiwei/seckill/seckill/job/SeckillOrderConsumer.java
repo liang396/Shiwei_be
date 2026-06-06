@@ -10,7 +10,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -49,3 +49,4 @@ public class SeckillOrderConsumer {
         seckillStockService.markSeckillSuccess(message.getActivityId(), message.getUserId(), order.getSeckillOrderId());
     }
 }
+

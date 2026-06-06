@@ -7,3 +7,4 @@ public class SeckillActivityEditReq extends SeckillActivityAddReq {
     private Long activityId;
     private Integer activityStatus;
 }
+

@@ -19,7 +19,7 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +48,6 @@ public class OrderTimeoutServiceImpl implements OrderTimeoutService {
             RBlockingDeque<String> blockingDeque = redissonClient.getBlockingDeque(OrderRedisKey.ORDER_TIMEOUT_DELAY_QUEUE);
             RDelayedQueue<String> delayedQueue = redissonClient.getDelayedQueue(blockingDeque);
             delayedQueue.offer(orderNo, delayMillis, TimeUnit.MILLISECONDS);
-            return;
         }
 
         if (stringRedisTemplate == null) {
@@ -111,3 +110,4 @@ public class OrderTimeoutServiceImpl implements OrderTimeoutService {
         this.redissonClient = redissonClient;
     }
 }
+

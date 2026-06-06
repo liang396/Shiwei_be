@@ -20,3 +20,4 @@ public class OrderOutboxEntity {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

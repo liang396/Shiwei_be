@@ -5,3 +5,4 @@ public class SentinelBlockedException extends BizException {
         super(message);
     }
 }
+

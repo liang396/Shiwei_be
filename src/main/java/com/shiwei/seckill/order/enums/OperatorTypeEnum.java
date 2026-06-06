@@ -6,3 +6,4 @@ public enum OperatorTypeEnum {
     PAY_SYSTEM,
     ADMIN
 }
+

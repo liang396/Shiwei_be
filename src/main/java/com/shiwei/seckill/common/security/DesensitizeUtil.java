@@ -18,3 +18,4 @@ public final class DesensitizeUtil {
         return value.substring(0, 6) + "****";
     }
 }
+

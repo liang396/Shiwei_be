@@ -5,4 +5,6 @@ import lombok.Data;
 @Data
 public class AlipayCreateReq {
     private Long orderId;
+    private String orderNo;
 }
+

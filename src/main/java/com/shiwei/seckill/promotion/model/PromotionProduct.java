@@ -21,3 +21,4 @@ public class PromotionProduct {
     private String tag;
     private String status;
 }
+

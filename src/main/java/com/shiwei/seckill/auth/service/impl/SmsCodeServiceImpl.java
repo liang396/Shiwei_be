@@ -41,3 +41,4 @@ public class SmsCodeServiceImpl implements SmsCodeService {
         return CODE_KEY_PREFIX + phone;
     }
 }
+

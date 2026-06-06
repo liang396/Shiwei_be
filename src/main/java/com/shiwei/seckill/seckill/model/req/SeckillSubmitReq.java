@@ -8,3 +8,4 @@ public class SeckillSubmitReq {
     private Long goodsId;
     private Integer buyNum;
 }
+

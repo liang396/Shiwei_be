@@ -8,6 +8,8 @@ import java.math.BigDecimal;
 public class OrderItemPayload {
     private Long productId;
     private String productName;
+    private String productImage;
     private BigDecimal price;
     private Integer quantity;
 }
+

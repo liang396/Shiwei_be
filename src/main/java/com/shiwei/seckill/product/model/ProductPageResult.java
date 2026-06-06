@@ -10,3 +10,4 @@ public class ProductPageResult {
     private Long nextLastId;
     private boolean hasMore;
 }
+

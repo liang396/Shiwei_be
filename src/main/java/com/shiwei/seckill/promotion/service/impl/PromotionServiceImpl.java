@@ -4,7 +4,7 @@ import com.shiwei.seckill.promotion.model.PromotionProduct;
 import com.shiwei.seckill.promotion.service.PromotionService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -103,3 +103,4 @@ public class PromotionServiceImpl implements PromotionService {
         return product;
     }
 }
+

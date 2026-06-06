@@ -283,6 +283,45 @@ GET /product/page?size=6
 GET /product/page?lastId=2006&size=6
 ```
 
+### 新增 / 编辑普通商品
+
+```http
+POST /product/admin/save
+Content-Type: application/json
+```
+
+```json
+{
+  "productId": 3001,
+  "productItemId": 4001,
+  "productName": "新品测试商品",
+  "productImage": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80",
+  "productImages": [
+    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1523206489230-c012c64b2b48?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1495435229349-e86db7bfa013?auto=format&fit=crop&w=900&q=80"
+  ],
+  "description": "支持 Apifox 直接新增或编辑的普通商品示例。",
+  "category": "电子产品",
+  "subcategory": "手机平板",
+  "theme": "electronics-phone",
+  "price": 1999.00,
+  "stock": 50,
+  "sales": 0,
+  "popularity": 0,
+  "featured": true
+}
+```
+
+说明：
+
+- `productId` 已存在时表示编辑，不存在时表示新增
+- `productImages` 建议传 5 张图，商品详情页会直接拿来做缩略图和轮播
+- `productImage` 作为封面图；如果不传，会默认取 `productImages[0]`
+- `theme` 可复用现有主题，如 `electronics-phone`、`electronics-laptop`、`fresh-fruit`、`fashion-shoe`
+
 ### 提交订单
 
 ```http

@@ -5,3 +5,4 @@ import com.shiwei.seckill.auth.model.AuthUser;
 
 public interface AuthUserMapper extends BaseMapper<AuthUser> {
 }
+

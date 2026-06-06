@@ -5,7 +5,7 @@ import com.shiwei.seckill.seckill.service.SeckillStockService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -55,3 +55,4 @@ public class SeckillStockServiceImpl implements SeckillStockService {
         localStore.put(key, value);
     }
 }
+

@@ -24,3 +24,4 @@ public class OrderStatusLogEntity {
     private String remark;
     private LocalDateTime createdAt;
 }
+

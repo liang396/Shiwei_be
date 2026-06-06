@@ -6,3 +6,4 @@ public final class SeckillKafkaTopic {
     private SeckillKafkaTopic() {
     }
 }
+

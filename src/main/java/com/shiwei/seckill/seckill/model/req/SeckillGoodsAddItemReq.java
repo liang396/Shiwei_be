@@ -12,3 +12,4 @@ public class SeckillGoodsAddItemReq {
     private Integer seckillStock;
     private Integer sortNum;
 }
+

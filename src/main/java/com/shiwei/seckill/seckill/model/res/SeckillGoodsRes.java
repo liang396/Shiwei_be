@@ -17,3 +17,4 @@ public class SeckillGoodsRes {
     private Integer remainStock;
     private Integer goodsStatus;
 }
+

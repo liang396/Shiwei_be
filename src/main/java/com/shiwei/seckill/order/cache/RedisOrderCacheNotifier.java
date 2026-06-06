@@ -4,7 +4,7 @@ import com.shiwei.seckill.order.config.OrderCacheConstants;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Component
 public class RedisOrderCacheNotifier implements OrderCacheNotifier {
@@ -19,3 +19,4 @@ public class RedisOrderCacheNotifier implements OrderCacheNotifier {
         stringRedisTemplate.convertAndSend(OrderCacheConstants.ORDER_CACHE_INVALIDATE_CHANNEL, cacheKey);
     }
 }
+

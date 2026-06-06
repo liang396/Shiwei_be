@@ -5,3 +5,4 @@ import com.shiwei.seckill.pay.entity.PayLogEntity;
 
 public interface PayLogMapper extends BaseMapper<PayLogEntity> {
 }
+

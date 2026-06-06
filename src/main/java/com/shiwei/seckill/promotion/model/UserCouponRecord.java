@@ -9,3 +9,4 @@ public class UserCouponRecord {
     private String claimedAt;
     private String status;
 }
+

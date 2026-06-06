@@ -10,3 +10,4 @@ public class LoginReq {
     private String verifyKey;
     private Boolean encrypt = false;
 }
+

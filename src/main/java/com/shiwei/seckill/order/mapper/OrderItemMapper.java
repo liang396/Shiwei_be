@@ -5,3 +5,4 @@ import com.shiwei.seckill.order.entity.OrderItemEntity;
 
 public interface OrderItemMapper extends BaseMapper<OrderItemEntity> {
 }
+

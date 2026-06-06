@@ -7,3 +7,4 @@ public class CartCheckReq {
     private Long cartId;
     private Boolean checked;
 }
+

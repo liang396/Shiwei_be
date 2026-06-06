@@ -21,3 +21,4 @@ public class RedisPubSubConfig {
         return container;
     }
 }
+

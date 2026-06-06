@@ -9,9 +9,12 @@ public interface CouponService {
 
     List<Coupon> listAvailableByUser(Long userId);
 
+    Coupon findAvailableByUser(Long userId, Long couponId);
+
     Coupon claim(Long userId, Long couponId);
 
     void consume(Long userId, Long couponId, java.math.BigDecimal goodsAmount);
 
     void restore(Long userId, Long couponId);
 }
+

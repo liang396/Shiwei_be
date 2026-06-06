@@ -14,3 +14,4 @@ public class RegReq {
     private Integer sourceUserId;
     private String sourceUccCode;
 }
+

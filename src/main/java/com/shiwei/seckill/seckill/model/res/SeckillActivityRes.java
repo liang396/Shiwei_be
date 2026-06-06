@@ -14,3 +14,4 @@ public class SeckillActivityRes {
     private Integer limitPerUser;
     private List<SeckillGoodsRes> goodsList;
 }
+

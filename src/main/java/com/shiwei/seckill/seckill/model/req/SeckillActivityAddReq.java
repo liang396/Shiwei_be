@@ -13,3 +13,4 @@ public class SeckillActivityAddReq {
     private String activityDesc;
     private List<SeckillGoodsAddItemReq> goodsList;
 }
+

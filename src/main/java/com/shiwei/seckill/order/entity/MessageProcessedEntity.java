@@ -13,3 +13,4 @@ public class MessageProcessedEntity {
     private String eventId;
     private LocalDateTime processedTime;
 }
+

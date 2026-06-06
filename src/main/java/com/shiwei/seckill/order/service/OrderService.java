@@ -1,6 +1,7 @@
 package com.shiwei.seckill.order.service;
 
 import com.shiwei.seckill.order.model.OrderRecord;
+import com.shiwei.seckill.order.model.OrderDetailUpdateReq;
 import com.shiwei.seckill.order.model.OrderPageResult;
 import com.shiwei.seckill.order.model.OrderSubmitReq;
 import com.shiwei.seckill.order.entity.OrderEntity;
@@ -12,9 +13,13 @@ public interface OrderService {
 
     List<OrderRecord> list();
 
-    OrderPageResult page(Long lastId, Integer size, String lastCreatedTime);
+    OrderPageResult page(Long lastId, Integer size, String lastCreatedTime, Integer status);
 
     OrderRecord detail(Long orderId);
+
+    OrderRecord detailByOrderNo(String orderNo);
+
+    OrderRecord updateDetailOptions(Long orderId, OrderDetailUpdateReq req);
 
     OrderRecord cancel(Long orderId);
 
@@ -22,3 +27,4 @@ public interface OrderService {
 
     OrderEntity getEntityByOrderNo(String orderNo);
 }
+

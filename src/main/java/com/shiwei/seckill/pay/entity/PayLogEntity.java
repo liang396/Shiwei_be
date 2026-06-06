@@ -22,3 +22,4 @@ public class PayLogEntity {
     private String notifyPayload;
     private LocalDateTime createdAt;
 }
+

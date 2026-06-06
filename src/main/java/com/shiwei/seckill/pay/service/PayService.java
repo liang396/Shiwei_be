@@ -7,3 +7,4 @@ public interface PayService {
 
     String handleNotify(Map<String, String> payload);
 }
+

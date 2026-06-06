@@ -9,3 +9,4 @@ public class SeckillPreCheckDto {
     private Long userId;
     private Integer buyNum;
 }
+

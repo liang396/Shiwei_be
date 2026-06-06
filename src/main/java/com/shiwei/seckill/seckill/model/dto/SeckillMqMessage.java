@@ -17,3 +17,4 @@ public class SeckillMqMessage {
     private Long requestTime;
     private String traceId;
 }
+

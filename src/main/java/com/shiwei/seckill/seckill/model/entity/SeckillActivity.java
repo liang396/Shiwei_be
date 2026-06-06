@@ -12,3 +12,4 @@ public class SeckillActivity {
     private Integer limitPerUser;
     private String activityDesc;
 }
+

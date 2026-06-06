@@ -12,8 +12,8 @@ import com.shiwei.seckill.common.security.DesensitizeUtil;
 import com.shiwei.seckill.common.security.RequestRateLimitService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -166,12 +166,17 @@ public class AddressServiceImpl implements AddressService {
     }
 
     private AddressRecord maskCopy(AddressRecord source) {
+        String mobileRaw = aesSecurityUtil.decryptOrRaw(source.getMobile());
+        String addressRaw = aesSecurityUtil.decryptOrRaw(source.getAddress());
         AddressRecord copy = new AddressRecord();
         copy.setAddressId(source.getAddressId());
         copy.setConsignee(source.getConsignee());
-        copy.setMobile(DesensitizeUtil.mobile(aesSecurityUtil.decryptOrRaw(source.getMobile())));
-        copy.setAddress(DesensitizeUtil.address(aesSecurityUtil.decryptOrRaw(source.getAddress())));
+        copy.setMobile(DesensitizeUtil.mobile(mobileRaw));
+        copy.setAddress(DesensitizeUtil.address(addressRaw));
+        copy.setMobileRaw(mobileRaw);
+        copy.setAddressRaw(addressRaw);
         copy.setIsDefault(source.getIsDefault());
         return copy;
     }
 }
+

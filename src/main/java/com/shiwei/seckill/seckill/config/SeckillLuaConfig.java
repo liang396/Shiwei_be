@@ -16,3 +16,4 @@ public class SeckillLuaConfig {
         return script;
     }
 }
+

@@ -9,3 +9,4 @@ public interface SeckillOrderService {
 
     SeckillResultRes queryResult(Long userId, Long activityId);
 }
+

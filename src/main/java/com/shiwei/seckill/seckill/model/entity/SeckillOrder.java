@@ -24,3 +24,4 @@ public class SeckillOrder {
     private Integer buyNum;
     private LocalDateTime createdAt;
 }
+

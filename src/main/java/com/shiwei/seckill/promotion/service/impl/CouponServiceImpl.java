@@ -6,9 +6,7 @@ import com.shiwei.seckill.common.exception.BizException;
 import com.shiwei.seckill.promotion.model.Coupon;
 import com.shiwei.seckill.promotion.model.UserCouponRecord;
 import com.shiwei.seckill.promotion.service.CouponService;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -19,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.springframework.stereotype.Service;
 
 @Service
 public class CouponServiceImpl implements CouponService {
@@ -34,10 +33,10 @@ public class CouponServiceImpl implements CouponService {
     public void initDefaults() {
         loadFromFile();
         templates.clear();
-        templates.add(createTemplate(1L, "新人券", "满99减10", "首单可用，限食品生鲜", "新人专享", "食品生鲜", 99));
-        templates.add(createTemplate(2L, "品类券", "满199减30", "适用电子产品和家居百货", "限时领券", "电子产品/家居百货", 199));
-        templates.add(createTemplate(3L, "运费券", "满39包邮", "食品生鲜和酒水饮料可用", "常用好券", "酒水饮料/食品生鲜", 39));
-        templates.add(createTemplate(4L, "爆款券", "满299减50", "适用热门活动商品", "今日推荐", "活动商品", 299));
+        templates.add(createTemplate(1L, "新人券", "满99减10", "首单可用，限食品生鲜", "新人专享", "食品生鲜", 99, 10, "DISCOUNT"));
+        templates.add(createTemplate(2L, "品类券", "满199减20", "适用电子产品和家居百货", "限时领券", "电子产品/家居百货", 199, 20, "DISCOUNT"));
+        templates.add(createTemplate(3L, "运费券", "满39减20", "食品生鲜和酒水饮料可用", "常用好券", "酒水饮料/食品生鲜", 39, 20, "DISCOUNT"));
+        templates.add(createTemplate(4L, "爆款券", "满299减30", "适用热门活动商品", "今日推荐", "活动商品", 299, 30, "DISCOUNT"));
     }
 
     @Override
@@ -59,6 +58,17 @@ public class CouponServiceImpl implements CouponService {
             }
         }
         return result;
+    }
+
+    @Override
+    public Coupon findAvailableByUser(Long userId, Long couponId) {
+        if (couponId == null) {
+            return null;
+        }
+        return listAvailableByUser(userId).stream()
+            .filter(item -> item.getCouponId().equals(couponId))
+            .findFirst()
+            .orElse(null);
     }
 
     @Override
@@ -126,7 +136,8 @@ public class CouponServiceImpl implements CouponService {
         persist();
     }
 
-    private Coupon createTemplate(Long id, String title, String value, String description, String tag, String scope, Integer thresholdAmount) {
+    private Coupon createTemplate(Long id, String title, String value, String description, String tag, String scope,
+                                  Integer thresholdAmount, Integer discountAmount, String benefitType) {
         Coupon coupon = new Coupon();
         coupon.setCouponId(id);
         coupon.setTitle(title);
@@ -135,6 +146,8 @@ public class CouponServiceImpl implements CouponService {
         coupon.setTag(tag);
         coupon.setScope(scope);
         coupon.setThresholdAmount(thresholdAmount);
+        coupon.setDiscountAmount(discountAmount);
+        coupon.setBenefitType(benefitType);
         coupon.setStatus("AVAILABLE");
         coupon.setClaimed(false);
         return coupon;
@@ -156,6 +169,8 @@ public class CouponServiceImpl implements CouponService {
         item.setTag(template.getTag());
         item.setScope(template.getScope());
         item.setThresholdAmount(template.getThresholdAmount());
+        item.setDiscountAmount(template.getDiscountAmount());
+        item.setBenefitType(template.getBenefitType());
         UserCouponRecord record = findRecord(userId, template.getCouponId());
         item.setClaimed(record != null);
         item.setStatus(record == null ? "AVAILABLE" : record.getStatus());

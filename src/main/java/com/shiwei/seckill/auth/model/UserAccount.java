@@ -11,3 +11,4 @@ public class UserAccount {
     private String phone;
     private String avatar;
 }
+

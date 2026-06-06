@@ -8,5 +8,8 @@ public class AddressRecord {
     private String consignee;
     private String mobile;
     private String address;
+    private String mobileRaw;
+    private String addressRaw;
     private Boolean isDefault;
 }
+

@@ -16,3 +16,4 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(ex.getMessage());
     }
 }
+

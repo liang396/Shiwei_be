@@ -5,3 +5,4 @@ import com.shiwei.seckill.seckill.model.dto.SeckillMqMessage;
 public interface SeckillMqService {
     void sendSeckillMessage(SeckillMqMessage message);
 }
+

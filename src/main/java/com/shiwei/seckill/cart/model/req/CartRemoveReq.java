@@ -6,3 +6,4 @@ import lombok.Data;
 public class CartRemoveReq {
     private Long cartId;
 }
+

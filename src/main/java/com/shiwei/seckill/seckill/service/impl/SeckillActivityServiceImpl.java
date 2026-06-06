@@ -3,6 +3,7 @@ package com.shiwei.seckill.seckill.service.impl;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.shiwei.seckill.common.exception.BizException;
 import com.shiwei.seckill.product.model.Product;
+import com.shiwei.seckill.product.service.ProductService;
 import com.shiwei.seckill.seckill.model.dto.SeckillGoodsSnapshot;
 import com.shiwei.seckill.seckill.model.entity.SeckillActivity;
 import com.shiwei.seckill.seckill.model.entity.SeckillGoods;
@@ -12,19 +13,16 @@ import com.shiwei.seckill.seckill.model.req.SeckillGoodsAddItemReq;
 import com.shiwei.seckill.seckill.model.res.SeckillActivityRes;
 import com.shiwei.seckill.seckill.model.res.SeckillGoodsRes;
 import com.shiwei.seckill.seckill.service.SeckillActivityService;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.Resource;
-import java.math.BigDecimal;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
 
 import static com.shiwei.seckill.seckill.config.SeckillRedisKey.activity;
 import static com.shiwei.seckill.seckill.config.SeckillRedisKey.stock;
@@ -40,6 +38,8 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
     private Cache<Object, Object> caffeineBuilder;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private ProductService productService;
 
     @Override
     public void addActivity(SeckillActivityAddReq req) {
@@ -88,9 +88,9 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
     @Override
     public List<SeckillActivityRes> listActivities() {
         return activities.values().stream()
-                .sorted(Comparator.comparingLong(SeckillActivity::getActivityId))
-                .map(this::toRes)
-                .collect(Collectors.toList());
+            .sorted(Comparator.comparingLong(SeckillActivity::getActivityId))
+            .map(this::toRes)
+            .collect(Collectors.toList());
     }
 
     @Override
@@ -102,10 +102,10 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
     @Override
     public SeckillGoodsSnapshot getGoodsSnapshot(Long activityId, Long goodsId) {
         return activityGoods.getOrDefault(activityId, new ArrayList<>()).stream()
-                .filter(goods -> goodsId.equals(goods.getGoodsId()))
-                .findFirst()
-                .map(goods -> new SeckillGoodsSnapshot(activityId, goodsId, goods.getProductId(), goods.getProductItemId(), goods.getSeckillPrice()))
-                .orElse(null);
+            .filter(goods -> goodsId.equals(goods.getGoodsId()))
+            .findFirst()
+            .map(goods -> new SeckillGoodsSnapshot(activityId, goodsId, goods.getProductId(), goods.getProductItemId(), goods.getSeckillPrice()))
+            .orElse(null);
     }
 
     private void validate(SeckillActivityAddReq req) {
@@ -155,19 +155,20 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
         res.setEndTime(activityEntity.getEndTime());
         res.setLimitPerUser(activityEntity.getLimitPerUser());
         res.setGoodsList(activityGoods.getOrDefault(activityEntity.getActivityId(), new ArrayList<>()).stream()
-                .map(this::toGoodsRes)
-                .collect(Collectors.toList()));
+            .map(this::toGoodsRes)
+            .collect(Collectors.toList()));
         return res;
     }
 
     private SeckillGoodsRes toGoodsRes(SeckillGoods goods) {
+        Product product = productService.detail(goods.getProductId());
         SeckillGoodsRes res = new SeckillGoodsRes();
         res.setGoodsId(goods.getGoodsId());
         res.setProductId(goods.getProductId());
         res.setProductItemId(goods.getProductItemId());
-        res.setProductName("商品-" + goods.getProductId());
-        res.setProductImage("demo.png");
-        res.setOriginalPrice(goods.getSeckillPrice().add(new BigDecimal("20.00")));
+        res.setProductName(product != null ? product.getProductName() : ("商品-" + goods.getProductId()));
+        res.setProductImage(product != null ? product.getProductImage() : "");
+        res.setOriginalPrice(product != null ? product.getPrice() : goods.getSeckillPrice());
         res.setSeckillPrice(goods.getSeckillPrice());
         res.setSeckillStock(goods.getSeckillStock());
         res.setRemainStock(goods.getAvailableStock());

@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Collections;
 
 @Service
@@ -51,3 +51,4 @@ public class OrderDuplicateGuardServiceImpl implements OrderDuplicateGuardServic
         return result == null || result == 1L;
     }
 }
+

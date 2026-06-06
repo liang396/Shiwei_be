@@ -12,3 +12,4 @@ public interface OrderMapper extends BaseMapper<OrderEntity> {
                      @Param("payTime") java.time.LocalDateTime payTime,
                      @Param("canceledTime") java.time.LocalDateTime canceledTime);
 }
+

@@ -10,8 +10,8 @@ import com.shiwei.seckill.profile.model.UserProfileSaveReq;
 import com.shiwei.seckill.profile.service.UserProfileService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,3 +94,4 @@ public class UserProfileServiceImpl implements UserProfileService {
         return user;
     }
 }
+

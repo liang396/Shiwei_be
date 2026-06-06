@@ -45,3 +45,4 @@ public class OrderStateMachineConfig {
         return rules == null ? null : rules.get(event);
     }
 }
+

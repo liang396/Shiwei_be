@@ -14,3 +14,4 @@ public class CartItem {
     private Integer quantity;
     private Boolean checked;
 }
+

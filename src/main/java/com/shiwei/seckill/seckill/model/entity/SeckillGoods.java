@@ -16,3 +16,4 @@ public class SeckillGoods {
     private Integer sortNum;
     private Integer status;
 }
+

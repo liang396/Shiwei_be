@@ -6,6 +6,7 @@ import com.shiwei.seckill.common.exception.BizException;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.entity.OrderOutboxEntity;
 import com.shiwei.seckill.order.entity.OrderStatusLogEntity;
+import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.enums.OperatorTypeEnum;
 import com.shiwei.seckill.order.enums.OrderEventEnum;
 import com.shiwei.seckill.order.enums.OrderStatusEnum;
@@ -19,7 +20,7 @@ import com.shiwei.seckill.order.service.support.OrderStateMachineConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,6 +35,8 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
     private OrderOutboxMapper orderOutboxMapper;
     @Resource
     private OrderStateMachineConfig orderStateMachineConfig;
+    @Resource
+    private OrderCacheNotifier orderCacheNotifier;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -69,6 +72,8 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         orderStatusLogMapper.insert(buildLog(order, sourceStatus, targetStatus, event, context, operateTime));
         orderOutboxMapper.insert(buildOutbox(order, sourceStatus, targetStatus, event, operateTime));
         order.setOrderStatus(targetStatus.getCode());
+        orderCacheNotifier.invalidate("order:detail:" + order.getId());
+        orderCacheNotifier.invalidate("order:list:user:1");
         return targetStatus;
     }
 
@@ -146,3 +151,4 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         return event == OrderEventEnum.REFUND_FINISH && currentStatus == OrderStatusEnum.REFUNDED;
     }
 }
+

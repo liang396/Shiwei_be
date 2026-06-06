@@ -13,3 +13,4 @@ public class ShiweiSeckillApplication {
         SpringApplication.run(ShiweiSeckillApplication.class, args);
     }
 }
+

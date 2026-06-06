@@ -17,7 +17,7 @@ import com.shiwei.seckill.seckill.service.SeckillOrderService;
 import com.shiwei.seckill.seckill.service.SeckillStockService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.UUID;
 
 @Service
@@ -130,3 +130,4 @@ public class SeckillOrderServiceImpl implements SeckillOrderService {
         return res;
     }
 }
+

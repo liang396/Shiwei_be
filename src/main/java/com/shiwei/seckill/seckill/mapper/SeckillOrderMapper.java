@@ -5,3 +5,4 @@ import com.shiwei.seckill.seckill.model.entity.SeckillOrder;
 
 public interface SeckillOrderMapper extends BaseMapper<SeckillOrder> {
 }
+

@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-public class Product {
+public class ProductSaveReq {
     private Long productId;
     private Long productItemId;
     private String productName;
@@ -22,4 +22,3 @@ public class Product {
     private Integer popularity;
     private Boolean featured;
 }
-

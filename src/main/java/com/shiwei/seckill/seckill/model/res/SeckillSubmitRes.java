@@ -9,3 +9,4 @@ public class SeckillSubmitRes {
     private Integer resultStatus;
     private String messageId;
 }
+

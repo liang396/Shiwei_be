@@ -20,3 +20,4 @@ public interface SeckillActivityService {
 
     SeckillGoodsSnapshot getGoodsSnapshot(Long activityId, Long goodsId);
 }
+

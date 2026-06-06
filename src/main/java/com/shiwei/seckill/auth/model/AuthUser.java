@@ -18,3 +18,4 @@ public class AuthUser {
     private String phone;
     private LocalDateTime createdAt;
 }
+
