@@ -8,7 +8,6 @@
 - 核心方案：Redis + Lua、状态机 + 状态专属 CAS、Outbox + Kafka、Redisson 延迟队列、Sentinel 限流降级
 - 代码亮点：订单状态机、双游标分页、消费幂等、死信机制、敏感信息 AES 加密、雪花 ID 时钟回拨保护
 - 工程化能力：Actuator / Micrometer 指标、Hibernate Validator 参数校验、分钟级防刷、二级缓存一致性
-- 适合展示：能讲清楚“为什么这样设计”，也能直接跑通完整链路
 
 ---
 
