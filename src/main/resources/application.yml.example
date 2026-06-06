@@ -1,0 +1,40 @@
+server:
+  port: 8102
+
+spring:
+  application:
+    name: shiwei-seckill-backend
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/shiwei?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8
+    username: your-mysql-username
+    password: your-mysql-password
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: your-redis-password
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+shiwei:
+  jwt:
+    secret: change-me-for-local
+    expire-seconds: 86400
+  alipay:
+    app-id: your-alipay-app-id
+    private-key: "your-alipay-private-key"
+    alipay-public-key: "your-alipay-public-key"
+    gateway: "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
+    return-url: "http://127.0.0.1:5173/orders?paid=1"
+    notify-url: ""

@@ -1,14 +1,16 @@
 # Shiwei Backend
 
-高并发商城后端项目，围绕 **订单流转、秒杀库存、缓存一致性、异步解耦、稳定性治理** 设计与实现。
+高并发商城后端项目，围绕 **订单流转、秒杀库存、缓存一致性、异步解耦、稳定性治理** 进行设计与实现。
 
-## 面试官速览
+> 🔗 **配套前端仓库**：[Shiwei_fe](https://github.com/liang396/Shiwei_fe) - 完整商城前端实现
 
-- 核心问题：库存扣减防超卖、订单状态流转一致性、重复消息消费、缓存击穿与超时取消
-- 核心方案：Redis + Lua、状态机 + 状态专属 CAS、Outbox + Kafka、Redisson 延迟队列、Sentinel 限流降级
-- 代码亮点：订单状态机、双游标分页、消费幂等、死信机制、敏感信息 AES 加密、雪花 ID 时钟回拨保护
-- 工程化能力：Actuator / Micrometer 指标、Hibernate Validator 参数校验、分钟级防刷、二级缓存一致性
-- 适合展示：能讲清楚“为什么这样设计”，也能直接跑通完整链路
+## 📌 项目速览
+
+- **核心问题**：库存扣减防超卖、订单状态流转一致性、重复消息消费、缓存击穿与超时取消
+- **核心方案**：Redis + Lua、状态机 + 状态专属 CAS、Outbox + Kafka、Redisson 延迟队列、Sentinel 限流降级
+- **代码亮点**：订单状态机、双游标分页、消费幂等、死信机制、敏感信息 AES 加密、雪花 ID 时钟回拨保护
+- **工程化能力**：Actuator / Micrometer 指标、Hibernate Validator 参数校验、分钟级防刷、二级缓存一致性
+- **展示价值**：既能讲清楚“为什么这样设计”，也能直接跑通完整链路
 
 ---
 
@@ -37,6 +39,34 @@
 - Sentinel
 - Actuator / Micrometer
 - Hibernate Validator
+
+---
+
+## 🧠 核心流程图（秒杀下单）
+
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant F as 前端
+  participant B as 后端
+  participant R as Redis
+  participant K as Kafka
+  participant C as 订单消费者
+
+  U->>F: 点击秒杀
+  F->>B: 提交秒杀请求
+  B->>R: Lua 预扣库存
+  alt 库存充足
+    R-->>B: 扣减成功
+    B->>K: 发送秒杀订单事件
+    B-->>F: 返回排队中
+    K->>C: 消费秒杀订单事件
+    C->>C: 创建秒杀订单
+  else 库存不足
+    R-->>B: 扣减失败
+    B-->>F: 返回秒杀失败
+  end
+```
 
 ---
 
@@ -132,6 +162,16 @@
 - 失败回滚 Redis 库存
 - 超时未支付订单定时补偿
 
+### 秒杀超时补偿
+
+秒杀单创建后并不意味着链路结束。如果用户长时间未支付，系统会通过延迟队列和兜底扫描触发超时关闭，并把此前预扣的秒杀库存补回，避免“库存已经扣减但订单最终失效”的脏状态长期存在。
+
+这部分补偿逻辑的价值在于：
+
+- 保证 Redis 侧库存与订单最终状态一致
+- 避免热点活动因为未支付订单堆积而长期少卖
+- 让秒杀流既有高并发入口削峰，也有后置纠偏机制
+
 ### 异步链路可靠性
 
 使用：
@@ -204,12 +244,19 @@ CREATE DATABASE shiwei DEFAULT CHARACTER SET utf8mb4;
 
 ### 4. 本地配置
 
-仓库默认 **不提交** `src/main/resources/application.yml`。  
-请自行创建本地配置文件，补充：
+仓库已提供示例配置文件：
+
+```bash
+cp src/main/resources/application.yml.example src/main/resources/application.yml
+```
+
+然后根据本地环境修改以下信息：
 
 - MySQL 连接配置
 - Redis 连接配置
 - Kafka 地址
+- JWT 密钥
+- 支付沙箱参数
 
 ### 5. 启动项目
 
@@ -265,6 +312,32 @@ Content-Type: application/json
 }
 ```
 
+### 秒杀提交
+
+```http
+POST /seckill/submit
+Content-Type: application/json
+```
+
+```json
+{
+  "activityId": 1,
+  "goodsId": 1001
+}
+```
+
+响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "排队中",
+  "data": {
+    "orderId": "123456789"
+  }
+}
+```
+
 ### 订单分页
 
 ```http
@@ -291,17 +364,17 @@ total_amount=89.00
 
 ## 实现状态
 
-- ✅ 普通订单状态机
-- ✅ 状态专属 CAS 更新
-- ✅ Redis + Lua 防重
-- ✅ Redisson 延迟队列超时取消
-- ✅ Outbox + Kafka
-- ✅ 消费幂等与死信
-- ✅ 二级缓存一致性
-- ✅ N+1 优化
-- ✅ 双字段游标分页
-- ✅ 秒杀库存补偿
-- ✅ Sentinel 限流与 profile 降级
-- ✅ 参数校验 / 防刷 / 敏感信息保护
-- ✅ 雪花 ID + 时钟回拨保护
-- 🚧 更完整的秒杀支付闭环仍可继续扩展
+- [x] 普通订单状态机
+- [x] 状态专属 CAS 更新
+- [x] Redis + Lua 防重
+- [x] Redisson 延迟队列超时取消
+- [x] Outbox + Kafka
+- [x] 消费幂等与死信
+- [x] 二级缓存一致性
+- [x] N+1 优化
+- [x] 双字段游标分页
+- [x] 秒杀库存补偿
+- [x] Sentinel 限流与 profile 降级
+- [x] 参数校验 / 防刷 / 敏感信息保护
+- [x] 雪花 ID + 时钟回拨保护
+- [ ] 更完整的秒杀支付闭环仍可继续扩展
