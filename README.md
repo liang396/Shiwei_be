@@ -28,8 +28,8 @@
 
 ## 技术栈
 
-- Java 8
-- Spring Boot 2.7
+- Java 21
+- Spring Boot 3.3.13
 - MyBatis-Plus
 - MySQL 8
 - Redis
@@ -223,7 +223,7 @@ SQL 文件：
 
 ### 1. 环境准备
 
-- JDK 8
+- JDK 21
 - Maven 3.8+
 - MySQL 8
 - Redis
