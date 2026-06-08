@@ -21,7 +21,11 @@ public class SeckillOrderConsumer {
     @Resource
     private SeckillStockService seckillStockService;
 
-    @KafkaListener(topics = "seckill-order-create", groupId = "shiwei-seckill-create")
+    @KafkaListener(
+        topics = "seckill-order-create",
+        groupId = "shiwei-seckill-create",
+        containerFactory = "seckillKafkaListenerContainerFactory"
+    )
     @Transactional(rollbackFor = Exception.class)
     public void consume(SeckillMqMessage message) {
         SeckillOrder existed = seckillOrderMapper.selectOne(

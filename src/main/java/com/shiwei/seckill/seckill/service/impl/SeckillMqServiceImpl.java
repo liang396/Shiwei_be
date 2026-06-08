@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SeckillMqServiceImpl implements SeckillMqService {
-    @Resource
+    @Resource(name = "seckillKafkaTemplate")
     private KafkaTemplate<String, SeckillMqMessage> kafkaTemplate;
 
     @Override
