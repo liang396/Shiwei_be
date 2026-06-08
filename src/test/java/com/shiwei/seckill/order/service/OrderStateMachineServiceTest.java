@@ -1,6 +1,7 @@
 package com.shiwei.seckill.order.service;
 
 import com.shiwei.seckill.common.exception.BizException;
+import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
 import com.shiwei.seckill.order.entity.OrderOutboxEntity;
 import com.shiwei.seckill.order.entity.OrderStatusLogEntity;
@@ -42,6 +43,8 @@ class OrderStateMachineServiceTest {
     private OrderStatusLogMapper orderStatusLogMapper;
     @Mock
     private OrderOutboxMapper orderOutboxMapper;
+    @Mock
+    private OrderCacheNotifier orderCacheNotifier;
 
     @InjectMocks
     private OrderStateMachineServiceImpl orderStateMachineService;
@@ -74,6 +77,8 @@ class OrderStateMachineServiceTest {
         ArgumentCaptor<OrderOutboxEntity> outboxCaptor = ArgumentCaptor.forClass(OrderOutboxEntity.class);
         verify(orderOutboxMapper).insert(outboxCaptor.capture());
         assertEquals(OrderEventEnum.PAY_SUCCESS.name(), outboxCaptor.getValue().getEventType());
+        verify(orderCacheNotifier).invalidate("order:detail:" + order.getId());
+        verify(orderCacheNotifier).invalidate("order:list:user:1");
     }
 
     @Test
@@ -103,8 +108,8 @@ class OrderStateMachineServiceTest {
 
         assertEquals(OrderStatusEnum.PAID, target);
         verify(orderMapper, never()).updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(), any());
-        verify(orderStatusLogMapper, never()).insert(any());
-        verify(orderOutboxMapper, never()).insert(any());
+        verify(orderStatusLogMapper, never()).insert(any(OrderStatusLogEntity.class));
+        verify(orderOutboxMapper, never()).insert(any(OrderOutboxEntity.class));
     }
 
     @Test
@@ -120,8 +125,8 @@ class OrderStateMachineServiceTest {
 
         assertEquals(OrderStatusEnum.CANCELED, target);
         verify(orderMapper, never()).updateStatus(anyLong(), anyInt(), anyInt(), nullable(String.class), any(), any());
-        verify(orderStatusLogMapper, never()).insert(any());
-        verify(orderOutboxMapper, never()).insert(any());
+        verify(orderStatusLogMapper, never()).insert(any(OrderStatusLogEntity.class));
+        verify(orderOutboxMapper, never()).insert(any(OrderOutboxEntity.class));
     }
 
     @Test

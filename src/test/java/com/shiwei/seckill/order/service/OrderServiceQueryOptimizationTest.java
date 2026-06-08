@@ -114,7 +114,7 @@ class OrderServiceQueryOptimizationTest {
         when(orderMapper.selectList(any())).thenReturn(Arrays.asList(first, second));
         when(orderItemMapper.selectList(any())).thenReturn(Collections.emptyList());
 
-        OrderPageResult page = orderService.page(null, 2, null);
+        OrderPageResult page = orderService.page(null, 2, null, null);
 
         assertEquals(9L, page.getNextLastId());
         assertEquals("2026-06-05 09:59:00", page.getNextCreatedTime());
