@@ -9,8 +9,10 @@ import com.shiwei.seckill.common.security.RequestRateLimitService;
 import com.shiwei.seckill.common.sentinel.SentinelSupport;
 import com.shiwei.seckill.order.cache.OrderCacheNotifier;
 import com.shiwei.seckill.order.entity.OrderEntity;
+import com.shiwei.seckill.order.entity.OrderStatusLogEntity;
 import com.shiwei.seckill.order.mapper.OrderItemMapper;
 import com.shiwei.seckill.order.mapper.OrderMapper;
+import com.shiwei.seckill.order.mapper.OrderStatusLogMapper;
 import com.shiwei.seckill.order.model.OrderSubmitReq;
 import com.shiwei.seckill.order.service.impl.OrderServiceImpl;
 import com.shiwei.seckill.promotion.service.CouponService;
@@ -35,6 +37,8 @@ class OrderServiceDuplicateGuardTest {
     private OrderMapper orderMapper;
     @Mock
     private OrderItemMapper orderItemMapper;
+    @Mock
+    private OrderStatusLogMapper orderStatusLogMapper;
     @Mock
     private OrderStateMachineService orderStateMachineService;
     @Mock
@@ -75,6 +79,11 @@ class OrderServiceDuplicateGuardTest {
             entity.setId(1L);
             return 1;
         });
+        OrderEntity persisted = new OrderEntity();
+        persisted.setId(1L);
+        persisted.setOrderNo("SW123");
+        persisted.setOrderStatus(0);
+        when(orderMapper.selectById(1L)).thenReturn(persisted);
 
         orderService.submit(new OrderSubmitReq());
 

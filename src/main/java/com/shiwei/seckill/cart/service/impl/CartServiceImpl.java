@@ -1,90 +1,119 @@
 package com.shiwei.seckill.cart.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.shiwei.seckill.cart.mapper.CartItemMapper;
 import com.shiwei.seckill.cart.model.CartItem;
+import com.shiwei.seckill.cart.model.CartItemEntity;
 import com.shiwei.seckill.cart.model.req.CartAddReq;
 import com.shiwei.seckill.cart.model.req.CartCheckReq;
 import com.shiwei.seckill.cart.model.req.CartRemoveReq;
 import com.shiwei.seckill.cart.model.req.CartUpdateReq;
 import com.shiwei.seckill.cart.service.CartService;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Service
 public class CartServiceImpl implements CartService {
-    private final CopyOnWriteArrayList<CartItem> cartItems = new CopyOnWriteArrayList<>();
-    private final AtomicLong cartIdGenerator = new AtomicLong(1L);
+    private static final Long DEFAULT_USER_ID = 1L;
+
+    @Resource
+    private CartItemMapper cartItemMapper;
 
     @Override
     public List<CartItem> listItems() {
-        return snapshot();
+        return toItems(cartItemMapper.selectList(
+            new LambdaQueryWrapper<CartItemEntity>()
+                .eq(CartItemEntity::getUserId, DEFAULT_USER_ID)
+                .orderByAsc(CartItemEntity::getCartId)
+        ));
     }
 
     @Override
     public List<CartItem> addItem(CartAddReq req) {
-        CartItem existing = cartItems.stream()
-            .filter(item -> item.getProductId() != null && item.getProductId().equals(req.getProductId()))
-            .findFirst()
-            .orElse(null);
-
+        CartItemEntity existing = cartItemMapper.selectOne(
+            new LambdaQueryWrapper<CartItemEntity>()
+                .eq(CartItemEntity::getUserId, DEFAULT_USER_ID)
+                .eq(CartItemEntity::getProductId, req.getProductId())
+                .last("limit 1")
+        );
         int quantity = req.getQuantity() == null || req.getQuantity() < 1 ? 1 : req.getQuantity();
 
         if (existing != null) {
             existing.setQuantity(existing.getQuantity() + quantity);
-            return snapshot();
+            cartItemMapper.updateById(existing);
+            return listItems();
         }
 
-        CartItem item = new CartItem();
-        item.setCartId(cartIdGenerator.getAndIncrement());
-        item.setProductId(req.getProductId());
-        item.setProductName(req.getProductName());
-        item.setProductImage(req.getProductImage());
-        item.setPrice(req.getPrice() == null ? BigDecimal.ZERO : req.getPrice());
-        item.setQuantity(quantity);
-        item.setChecked(true);
-        cartItems.add(item);
-        return snapshot();
+        CartItemEntity entity = new CartItemEntity();
+        entity.setUserId(DEFAULT_USER_ID);
+        entity.setProductId(req.getProductId());
+        entity.setProductName(req.getProductName());
+        entity.setProductImage(req.getProductImage());
+        entity.setPrice(req.getPrice() == null ? BigDecimal.ZERO : req.getPrice());
+        entity.setQuantity(quantity);
+        entity.setChecked(Boolean.TRUE);
+        cartItemMapper.insert(entity);
+        return listItems();
     }
 
     @Override
     public List<CartItem> updateItem(CartUpdateReq req) {
-        cartItems.stream()
-            .filter(item -> item.getCartId().equals(req.getCartId()))
-            .findFirst()
-            .ifPresent(item -> item.setQuantity(Math.max(1, req.getQuantity() == null ? 1 : req.getQuantity())));
-        return snapshot();
+        CartItemEntity entity = cartItemMapper.selectById(req.getCartId());
+        if (entity != null && DEFAULT_USER_ID.equals(entity.getUserId())) {
+            entity.setQuantity(Math.max(1, req.getQuantity() == null ? 1 : req.getQuantity()));
+            cartItemMapper.updateById(entity);
+        }
+        return listItems();
     }
 
     @Override
     public List<CartItem> removeItem(CartRemoveReq req) {
-        cartItems.removeIf(item -> item.getCartId().equals(req.getCartId()));
-        return snapshot();
+        CartItemEntity entity = cartItemMapper.selectById(req.getCartId());
+        if (entity != null && DEFAULT_USER_ID.equals(entity.getUserId())) {
+            cartItemMapper.deleteById(req.getCartId());
+        }
+        return listItems();
     }
 
     @Override
     public List<CartItem> checkItem(CartCheckReq req) {
         if (req.getCartId() == null || req.getCartId() == 0L) {
+            List<CartItemEntity> entities = cartItemMapper.selectList(
+                new LambdaQueryWrapper<CartItemEntity>().eq(CartItemEntity::getUserId, DEFAULT_USER_ID)
+            );
             boolean checked = req.getChecked() != null && req.getChecked();
-            cartItems.forEach(item -> item.setChecked(checked));
-            return snapshot();
+            for (CartItemEntity entity : entities) {
+                entity.setChecked(checked);
+                cartItemMapper.updateById(entity);
+            }
+            return listItems();
         }
 
-        cartItems.stream()
-            .filter(item -> item.getCartId().equals(req.getCartId()))
-            .findFirst()
-            .ifPresent(item -> item.setChecked(req.getChecked() != null && req.getChecked()));
-        return snapshot();
+        CartItemEntity entity = cartItemMapper.selectById(req.getCartId());
+        if (entity != null && DEFAULT_USER_ID.equals(entity.getUserId())) {
+            entity.setChecked(req.getChecked() != null && req.getChecked());
+            cartItemMapper.updateById(entity);
+        }
+        return listItems();
     }
 
-    private List<CartItem> snapshot() {
-        List<CartItem> list = new ArrayList<>(cartItems);
-        list.sort(Comparator.comparing(CartItem::getCartId));
-        return list;
+    private List<CartItem> toItems(List<CartItemEntity> entities) {
+        return entities.stream().map(this::toItem).collect(Collectors.toList());
+    }
+
+    private CartItem toItem(CartItemEntity entity) {
+        CartItem item = new CartItem();
+        item.setCartId(entity.getCartId());
+        item.setProductId(entity.getProductId());
+        item.setProductName(entity.getProductName());
+        item.setProductImage(entity.getProductImage());
+        item.setPrice(entity.getPrice());
+        item.setQuantity(entity.getQuantity());
+        item.setChecked(Boolean.TRUE.equals(entity.getChecked()));
+        return item;
     }
 }
-

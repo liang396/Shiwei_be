@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `seckill_activity` (
   `start_time` bigint NOT NULL,
   `end_time` bigint NOT NULL,
   `limit_per_user` int NOT NULL DEFAULT 1,
+  `activity_desc` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`activity_id`)
 );
 
@@ -16,6 +17,8 @@ CREATE TABLE IF NOT EXISTS `seckill_goods` (
   `seckill_price` decimal(10,2) NOT NULL,
   `seckill_stock` int NOT NULL DEFAULT 0,
   `available_stock` int NOT NULL DEFAULT 0,
+  `sort_num` int NOT NULL DEFAULT 0,
+  `status` tinyint NOT NULL DEFAULT 0,
   PRIMARY KEY (`goods_id`)
 );
 
@@ -51,11 +54,33 @@ CREATE TABLE IF NOT EXISTS `product` (
   `product_item_id` bigint NOT NULL,
   `product_name` varchar(128) NOT NULL,
   `product_image` varchar(255) DEFAULT NULL,
+  `product_images` text,
+  `description` text,
+  `detail_content` text,
+  `category` varchar(64) DEFAULT NULL,
+  `subcategory` varchar(64) DEFAULT NULL,
+  `theme` varchar(64) DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
   `stock` int NOT NULL DEFAULT 0,
   `sales` int NOT NULL DEFAULT 0,
   `popularity` int NOT NULL DEFAULT 0,
+  `featured` tinyint NOT NULL DEFAULT 0,
   PRIMARY KEY (`product_id`)
+);
+
+CREATE TABLE IF NOT EXISTS `cart_item` (
+  `cart_id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL DEFAULT 1,
+  `product_id` bigint NOT NULL,
+  `product_name` varchar(128) DEFAULT NULL,
+  `product_image` varchar(255) DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `quantity` int NOT NULL DEFAULT 1,
+  `checked` tinyint NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`cart_id`),
+  UNIQUE KEY `uk_cart_user_product` (`user_id`, `product_id`)
 );
 
 CREATE TABLE IF NOT EXISTS `t_order` (

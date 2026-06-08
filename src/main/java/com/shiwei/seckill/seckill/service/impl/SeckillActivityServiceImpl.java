@@ -1,9 +1,14 @@
 package com.shiwei.seckill.seckill.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shiwei.seckill.common.exception.BizException;
 import com.shiwei.seckill.product.model.Product;
 import com.shiwei.seckill.product.service.ProductService;
+import com.shiwei.seckill.seckill.mapper.SeckillActivityMapper;
+import com.shiwei.seckill.seckill.mapper.SeckillGoodsMapper;
 import com.shiwei.seckill.seckill.model.dto.SeckillGoodsSnapshot;
 import com.shiwei.seckill.seckill.model.entity.SeckillActivity;
 import com.shiwei.seckill.seckill.model.entity.SeckillGoods;
@@ -14,25 +19,20 @@ import com.shiwei.seckill.seckill.model.res.SeckillActivityRes;
 import com.shiwei.seckill.seckill.model.res.SeckillGoodsRes;
 import com.shiwei.seckill.seckill.service.SeckillActivityService;
 import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static com.shiwei.seckill.seckill.config.SeckillRedisKey.activity;
+import static com.shiwei.seckill.seckill.config.SeckillRedisKey.goodsSnapshot;
 import static com.shiwei.seckill.seckill.config.SeckillRedisKey.stock;
 
 @Service
 public class SeckillActivityServiceImpl implements SeckillActivityService {
-    private final AtomicLong activityIdGenerator = new AtomicLong(1);
-    private final AtomicLong goodsIdGenerator = new AtomicLong(1);
-    private final Map<Long, SeckillActivity> activities = new ConcurrentHashMap<>();
-    private final Map<Long, List<SeckillGoods>> activityGoods = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Resource
     private Cache<Object, Object> caffeineBuilder;
@@ -40,27 +40,30 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
     private StringRedisTemplate stringRedisTemplate;
     @Resource
     private ProductService productService;
+    @Resource
+    private SeckillActivityMapper seckillActivityMapper;
+    @Resource
+    private SeckillGoodsMapper seckillGoodsMapper;
 
     @Override
     public void addActivity(SeckillActivityAddReq req) {
         validate(req);
-        long activityId = activityIdGenerator.getAndIncrement();
         SeckillActivity activityEntity = new SeckillActivity();
-        activityEntity.setActivityId(activityId);
+        activityEntity.setActivityId(req instanceof SeckillActivityEditReq editReq ? editReq.getActivityId() : System.currentTimeMillis());
         activityEntity.setActivityName(req.getActivityName());
         activityEntity.setActivityStatus(0);
         activityEntity.setStartTime(req.getStartTime());
         activityEntity.setEndTime(req.getEndTime());
         activityEntity.setLimitPerUser(req.getLimitPerUser());
         activityEntity.setActivityDesc(req.getActivityDesc());
-        activities.put(activityId, activityEntity);
-        activityGoods.put(activityId, buildGoods(activityId, req.getGoodsList(), 0));
-        caffeineBuilder.put(activityId, activityEntity);
+        seckillActivityMapper.insert(activityEntity);
+        replaceGoods(activityEntity.getActivityId(), req.getGoodsList(), 0);
+        caffeineBuilder.put(activityEntity.getActivityId(), activityEntity);
     }
 
     @Override
     public void editActivity(SeckillActivityEditReq req) {
-        SeckillActivity existing = activities.get(req.getActivityId());
+        SeckillActivity existing = seckillActivityMapper.selectById(req.getActivityId());
         if (existing == null) {
             throw new BizException("秒杀活动不存在");
         }
@@ -71,41 +74,57 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
         existing.setLimitPerUser(req.getLimitPerUser());
         existing.setActivityDesc(req.getActivityDesc());
         existing.setActivityStatus(req.getActivityStatus() == null ? existing.getActivityStatus() : req.getActivityStatus());
-        activityGoods.put(existing.getActivityId(), buildGoods(existing.getActivityId(), req.getGoodsList(), existing.getActivityStatus()));
+        seckillActivityMapper.updateById(existing);
+        replaceGoods(existing.getActivityId(), req.getGoodsList(), existing.getActivityStatus());
         caffeineBuilder.put(existing.getActivityId(), existing);
     }
 
     @Override
     public void publishActivity(Long activityId) {
-        SeckillActivity existing = activities.get(activityId);
+        SeckillActivity existing = seckillActivityMapper.selectById(activityId);
         if (existing == null) {
             throw new BizException("秒杀活动不存在");
         }
         existing.setActivityStatus(1);
-        warmup(existing, activityGoods.getOrDefault(activityId, new ArrayList<>()));
+        seckillActivityMapper.updateById(existing);
+        List<SeckillGoods> goodsList = listGoods(activityId);
+        warmup(existing, goodsList);
     }
 
     @Override
     public List<SeckillActivityRes> listActivities() {
-        return activities.values().stream()
-            .sorted(Comparator.comparingLong(SeckillActivity::getActivityId))
-            .map(this::toRes)
-            .collect(Collectors.toList());
+        return seckillActivityMapper.selectList(
+            new LambdaQueryWrapper<SeckillActivity>().orderByAsc(SeckillActivity::getActivityId)
+        ).stream().map(this::toRes).collect(Collectors.toList());
     }
 
     @Override
     public SeckillActivityRes getActivityDetail(Long activityId) {
-        SeckillActivity activity = activities.get(activityId);
+        SeckillActivity activity = seckillActivityMapper.selectById(activityId);
         return activity == null ? null : toRes(activity);
     }
 
     @Override
     public SeckillGoodsSnapshot getGoodsSnapshot(Long activityId, Long goodsId) {
-        return activityGoods.getOrDefault(activityId, new ArrayList<>()).stream()
-            .filter(goods -> goodsId.equals(goods.getGoodsId()))
-            .findFirst()
-            .map(goods -> new SeckillGoodsSnapshot(activityId, goodsId, goods.getProductId(), goods.getProductItemId(), goods.getSeckillPrice()))
-            .orElse(null);
+        if (stringRedisTemplate != null) {
+            String snapshotJson = stringRedisTemplate.opsForValue().get(goodsSnapshot(activityId, goodsId));
+            if (snapshotJson != null && !snapshotJson.isBlank()) {
+                try {
+                    return objectMapper.readValue(snapshotJson, SeckillGoodsSnapshot.class);
+                } catch (JsonProcessingException ignored) {
+                }
+            }
+        }
+        SeckillGoods goods = seckillGoodsMapper.selectOne(
+            new LambdaQueryWrapper<SeckillGoods>()
+                .eq(SeckillGoods::getActivityId, activityId)
+                .eq(SeckillGoods::getGoodsId, goodsId)
+                .last("limit 1")
+        );
+        if (goods == null) {
+            return null;
+        }
+        return new SeckillGoodsSnapshot(activityId, goodsId, goods.getProductId(), goods.getProductItemId(), goods.getSeckillPrice());
     }
 
     private void validate(SeckillActivityAddReq req) {
@@ -114,11 +133,12 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
         }
     }
 
-    private List<SeckillGoods> buildGoods(Long activityId, List<SeckillGoodsAddItemReq> reqs, Integer status) {
-        List<SeckillGoods> goodsList = new ArrayList<>();
+    private void replaceGoods(Long activityId, List<SeckillGoodsAddItemReq> reqs, Integer status) {
+        seckillGoodsMapper.delete(new LambdaQueryWrapper<SeckillGoods>().eq(SeckillGoods::getActivityId, activityId));
+        long goodsIdSeed = System.currentTimeMillis();
         for (SeckillGoodsAddItemReq req : reqs) {
             SeckillGoods goods = new SeckillGoods();
-            goods.setGoodsId(goodsIdGenerator.getAndIncrement());
+            goods.setGoodsId(goodsIdSeed++);
             goods.setActivityId(activityId);
             goods.setProductId(req.getProductId());
             goods.setProductItemId(req.getProductItemId());
@@ -127,9 +147,17 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
             goods.setAvailableStock(req.getSeckillStock());
             goods.setSortNum(req.getSortNum() == null ? 0 : req.getSortNum());
             goods.setStatus(status);
-            goodsList.add(goods);
+            seckillGoodsMapper.insert(goods);
         }
-        return goodsList;
+    }
+
+    private List<SeckillGoods> listGoods(Long activityId) {
+        return seckillGoodsMapper.selectList(
+            new LambdaQueryWrapper<SeckillGoods>()
+                .eq(SeckillGoods::getActivityId, activityId)
+                .orderByAsc(SeckillGoods::getSortNum)
+                .orderByAsc(SeckillGoods::getGoodsId)
+        );
     }
 
     private void warmup(SeckillActivity activityEntity, List<SeckillGoods> goodsList) {
@@ -142,7 +170,20 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
         stringRedisTemplate.opsForHash().put(key, "endTime", String.valueOf(activityEntity.getEndTime()));
         stringRedisTemplate.opsForHash().put(key, "limitPerUser", String.valueOf(activityEntity.getLimitPerUser()));
         for (SeckillGoods goods : goodsList) {
-            stringRedisTemplate.opsForValue().set(stock(activityEntity.getActivityId(), goods.getGoodsId()), String.valueOf(goods.getSeckillStock()));
+            stringRedisTemplate.opsForValue().set(stock(activityEntity.getActivityId(), goods.getGoodsId()), String.valueOf(goods.getAvailableStock()));
+            try {
+                stringRedisTemplate.opsForValue().set(
+                    goodsSnapshot(activityEntity.getActivityId(), goods.getGoodsId()),
+                    objectMapper.writeValueAsString(new SeckillGoodsSnapshot(
+                        activityEntity.getActivityId(),
+                        goods.getGoodsId(),
+                        goods.getProductId(),
+                        goods.getProductItemId(),
+                        goods.getSeckillPrice()
+                    ))
+                );
+            } catch (JsonProcessingException ignored) {
+            }
         }
     }
 
@@ -154,7 +195,7 @@ public class SeckillActivityServiceImpl implements SeckillActivityService {
         res.setStartTime(activityEntity.getStartTime());
         res.setEndTime(activityEntity.getEndTime());
         res.setLimitPerUser(activityEntity.getLimitPerUser());
-        res.setGoodsList(activityGoods.getOrDefault(activityEntity.getActivityId(), new ArrayList<>()).stream()
+        res.setGoodsList(listGoods(activityEntity.getActivityId()).stream()
             .map(this::toGoodsRes)
             .collect(Collectors.toList()));
         return res;
