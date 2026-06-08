@@ -109,6 +109,7 @@ public class ProductServiceImpl implements ProductService {
         target.setProductImage(resolveCoverImage(req));
         target.setProductImages(resolveGallery(req));
         target.setDescription(req.getDescription());
+        target.setDetailContent(req.getDetailContent());
         target.setCategory(req.getCategory());
         target.setSubcategory(req.getSubcategory());
         target.setTheme(req.getTheme());
@@ -182,6 +183,7 @@ public class ProductServiceImpl implements ProductService {
         product.setProductImage(resolveProductImage(theme));
         product.setProductImages(resolveProductImages(theme));
         product.setDescription(description);
+        product.setDetailContent(description);
         product.setCategory(category);
         product.setSubcategory(subcategory);
         product.setTheme(theme);

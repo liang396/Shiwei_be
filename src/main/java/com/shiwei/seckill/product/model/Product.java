@@ -13,6 +13,7 @@ public class Product {
     private String productImage;
     private List<String> productImages;
     private String description;
+    private String detailContent;
     private String category;
     private String subcategory;
     private String theme;
