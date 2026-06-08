@@ -1,4 +1,4 @@
-# Shiwei Backend
+﻿# Shiwei Backend
 
 高并发商城后端项目，围绕 **订单流转、秒杀库存、缓存一致性、异步解耦、稳定性治理** 进行设计与实现。
 
@@ -7,7 +7,7 @@
 ## 📌 项目速览
 
 - **核心问题**：库存扣减防超卖、订单状态流转一致性、重复消息消费、缓存击穿与超时取消
-- **核心方案**：Redis + Lua、状态机 + 状态专属 CAS、Outbox + Kafka、Redisson 延迟队列、Sentinel 限流降级
+- **核心方案**：Redis + Lua、状态机 + 状态专属 CAS、Outbox + Kafka、Redisson 延迟队列、Sentinel 限流降级、MySQL 持久化商品/购物车/秒杀配置
 - **代码亮点**：订单状态机、双游标分页、消费幂等、死信机制、敏感信息 AES 加密、雪花 ID 时钟回拨保护
 - **工程化能力**：Actuator / Micrometer 指标、Hibernate Validator 参数校验、分钟级防刷、二级缓存一致性
 ---
@@ -110,6 +110,8 @@ sequenceDiagram
 负责：
 
 - 秒杀活动与商品
+- 秒杀活动 / 商品配置持久化
+- 发布时将活动状态、库存、商品快照预热到 Redis
 - Lua 预扣库存
 - Kafka 异步创建秒杀订单
 - 未支付秒杀单超时回补库存
@@ -127,7 +129,7 @@ sequenceDiagram
 负责：
 
 - 登录注册
-- 购物车
+- 购物车持久化
 - 收货地址
 - 个人资料
 
@@ -155,6 +157,8 @@ sequenceDiagram
 
 秒杀链路采用：
 
+- MySQL 持久化活动与商品配置
+- publish 时将活动状态、库存、商品快照预热到 Redis
 - Redis 预扣库存
 - Lua 原子校验
 - 失败回滚 Redis 库存
@@ -216,6 +220,10 @@ sequenceDiagram
 - `seckill_activity`
 - `seckill_goods`
 - `seckill_order`
+
+商品与购物车：
+- `product`
+- `cart_item`
 
 SQL 文件：
 

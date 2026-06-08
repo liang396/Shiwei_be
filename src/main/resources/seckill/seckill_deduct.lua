@@ -30,7 +30,7 @@ if (redis.call('EXISTS', stockKey) == 0) then
     return -5
 end
 
-if (redis.call('EXISTS', userOrderKey) == 1) then
+if (redis.call('SISMEMBER', userOrderKey, ARGV[3]) == 1) then
     return -4
 end
 
@@ -40,7 +40,7 @@ if (stock == nil or stock < buyNum) then
 end
 
 redis.call('DECRBY', stockKey, buyNum)
-redis.call('SET', userOrderKey, ARGV[2] .. ':' .. ARGV[3])
+redis.call('SADD', userOrderKey, ARGV[3])
 redis.call('SET', resultKey, '0')
 
 return 1
